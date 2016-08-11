@@ -52,8 +52,8 @@ int SelectPoller::processPendingEvents(double maxWait)
 	else if (countReady == -1)
 	{
 		{
-// 			WARNING_MSG(fmt::format("EventDispatcher::processContinuously: "
-// 									"error in select(): {}\n", __strerror()));
+			// 			WARNING_MSG(fmt::format("EventDispatcher::processContinuously: "
+			// 									"error in select(): {}\n", __strerror()));
 		}
 	}
 
@@ -99,18 +99,18 @@ bool SelectPoller::doRegisterForRead(int fd)
 #ifndef _WIN32
 	if ((fd < 0) || (FD_SETSIZE <= fd))
 	{
-// 		ERROR_MSG(fmt::format("SelectPoller::doRegisterForRead: "
-// 			"Tried to register invalid fd {}. FD_SETSIZE ({})\n",
-// 			fd, FD_SETSIZE));
+		// 		ERROR_MSG(fmt::format("SelectPoller::doRegisterForRead: "
+		// 			"Tried to register invalid fd {}. FD_SETSIZE ({})\n",
+		// 			fd, FD_SETSIZE));
 
 		return false;
 	}
 #else
 	if (mFdReadSet.fd_count >= FD_SETSIZE)
 	{
-// 		ERROR_MSG(fmt::format("SelectPoller::doRegisterForRead: "
-// 			"Tried to register invalid fd {}. FD_SETSIZE ({})\n",
-// 			fd, FD_SETSIZE));
+		// 		ERROR_MSG(fmt::format("SelectPoller::doRegisterForRead: "
+		// 			"Tried to register invalid fd {}. FD_SETSIZE ({})\n",
+		// 			fd, FD_SETSIZE));
 
 		return false;
 	}
@@ -130,18 +130,18 @@ bool SelectPoller::doRegisterForWrite(int fd)
 #ifndef _WIN32
 	if ((fd < 0) || (FD_SETSIZE <= fd))
 	{
-// 		ERROR_MSG(fmt::format("SelectPoller::doRegisterForWrite: "
-// 			"Tried to register invalid fd {}. FD_SETSIZE ({})\n",
-// 			fd, FD_SETSIZE));
+		// 		ERROR_MSG(fmt::format("SelectPoller::doRegisterForWrite: "
+		// 			"Tried to register invalid fd {}. FD_SETSIZE ({})\n",
+		// 			fd, FD_SETSIZE));
 
 		return false;
 	}
 #else
 	if (mFdWriteSet.fd_count >= FD_SETSIZE)
 	{
-// 		ERROR_MSG(fmt::format("SelectPoller::doRegisterForWrite: "
-// 			"Tried to register invalid fd {}. FD_SETSIZE ({})\n",
-// 			fd, FD_SETSIZE));
+		// 		ERROR_MSG(fmt::format("SelectPoller::doRegisterForWrite: "
+		// 			"Tried to register invalid fd {}. FD_SETSIZE ({})\n",
+		// 			fd, FD_SETSIZE));
 
 		return false;
 	}

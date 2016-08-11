@@ -5,9 +5,9 @@
 
 class SelectPoller : public EventPoller
 {
-public:
+  public:
 	SelectPoller();
-protected:
+  protected:
 	virtual bool doRegisterForRead(int fd);
 	virtual bool doRegisterForWrite(int fd);
 
@@ -15,7 +15,7 @@ protected:
 	virtual bool doDeregisterForWrite(int fd);
 
 	virtual int processPendingEvents(double maxWait);
-private:
+  private:
 	void handleNotifications(int &countReady, fd_set &readFDs, fd_set &writeFDs);
 
 	fd_set mFdReadSet;

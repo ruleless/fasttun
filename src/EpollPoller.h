@@ -3,11 +3,11 @@
 
 #include "EventPoller.h"
 
-// #ifdef HAS_EPOLL
+#ifdef HAS_EPOLL
 
 class EpollPoller : public EventPoller
 {
-public:
+  public:
 	EpollPoller(int expectedSize = 10);
 	virtual ~EpollPoller();
 
@@ -15,7 +15,7 @@ public:
 	{
 		return mEpfd;
 	}
-protected:
+  protected:
 	virtual bool doRegisterForRead(int fd)
 	{
 		return this->doRegister(fd, true, true);
@@ -39,7 +39,7 @@ protected:
 	virtual int processPendingEvents(double maxWait);
 
 	bool doRegister(int fd, bool isRead, bool isRegister);
-private:
+  private:
 	int mEpfd;
 };
 
