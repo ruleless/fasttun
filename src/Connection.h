@@ -9,13 +9,16 @@ NAMESPACE_BEG(tun)
 class Connection : public InputNotificationHandler
 {
   public:
-	struct Handler
+	class Handler
 	{
+	  public:
+		Handler() {}
+		
 		virtual void onConnected(Connection *pConn) {}
 		virtual void onDisconnected(Connection *pConn) {}
 
 		virtual void onRecv(Connection *pConn, const void *data, size_t datelen) = 0;
-		virtual void onError(Connection *pConn);
+		virtual void onError(Connection *pConn) {}
 		
 	};
 	
@@ -24,6 +27,7 @@ class Connection : public InputNotificationHandler
 			,mHandler(NULL)
 			,mEventPoller(poller)
 	{
+		memset(&mPeerAddr, 0, sizeof(mPeerAddr));
 		assert(mEventPoller && "Connection::mEventPoller != NULL");
 	}
 	
@@ -32,7 +36,7 @@ class Connection : public InputNotificationHandler
 	bool acceptConnection(int connfd);
 	bool connect(const char *ip, int port);
 
-	void shutdown();
+	void shutdown();	
 
 	int send(const void *data, size_t datalen);
 
@@ -46,10 +50,14 @@ class Connection : public InputNotificationHandler
 		mHandler = h;
 	}
 
+	const char* getPeerIp(char *ip, int iplen) const;
+	int getPeerPort() const;
+
 	// InputNotificationHandler
 	virtual int handleInputNotification(int fd);
   private:
 	int mFd;
+	sockaddr_in mPeerAddr;
 	Handler *mHandler; 
 
 	EventPoller *mEventPoller;

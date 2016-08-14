@@ -5,11 +5,12 @@
 using namespace tun;
 
 //--------------------------------------------------------------------------
-class Proxy : public Listener::Handler
+class Proxy : public Listener::Handler, public Connection::Handler
 {
   public:
     Proxy(EventPoller *poller)
-			:mEventPoller(poller)
+			:Connection::Handler()
+			,mEventPoller(poller)
 			,mListener(poller)
 			,mConns()
 	{
@@ -53,8 +54,61 @@ class Proxy : public Listener::Handler
 			return;
 		}
 
+		pConn->setEventHandler(this);
 		mConns.insert(std::pair<int, Connection *>(connfd, pConn));
 	}
+
+	virtual void onDisconnected(Connection *pConn)
+	{
+		char strSrc[1024] = {0};
+		if (getPeerAddrInfo(pConn, strSrc, sizeof(strSrc)))
+		{
+			logWarningLn("from "<<strSrc<<"!  connection disconnected!"
+						 <<"  we now have "<<mConns.size()-1<<" connections!");
+		}		
+		
+		onConnShut(pConn);
+	}
+
+	virtual void onRecv(Connection *pConn, const void *data, size_t datelen)
+	{
+	}
+	
+	virtual void onError(Connection *pConn)
+	{
+		char strSrc[1024] = {0};
+		if (getPeerAddrInfo(pConn, strSrc, sizeof(strSrc)))
+		{
+			logWarningLn("from "<<strSrc<<"!  got error on connection!"
+						 <<"  we now have "<<mConns.size()-1<<" connections!");
+		}
+		
+		onConnShut(pConn);
+	}
+	
+  private:
+	void onConnShut(Connection *pConn)
+	{		
+		ConnMap::iterator it = mConns.find(pConn->getSockFd());
+		if (it != mConns.end())
+		{			
+			mConns.erase(it);
+		}
+
+		pConn->shutdown();
+		delete pConn;
+	}
+
+	char* getPeerAddrInfo(Connection *pConn, char *info, int len)
+	{
+		char peerIp[MAX_BUF] = {0};
+		if (pConn->getPeerIp(peerIp, MAX_BUF))
+		{
+			snprintf(info, len, "%s:%d", peerIp, pConn->getPeerPort());
+			return info;
+		}
+		return NULL;
+	}	
   private:
 	typedef std::map<int, Connection *> ConnMap;
 	

@@ -14,7 +14,7 @@ bool Connection::acceptConnection(int connfd)
 		return false;
 	}
 
-	mFd = connfd;
+	mFd = connfd;	
 
 	// set nonblocking	
 	int fstatus = fcntl(mFd, F_GETFL);
@@ -26,6 +26,12 @@ bool Connection::acceptConnection(int connfd)
 	if (fcntl(mFd, F_SETFL, fstatus|O_NONBLOCK) < 0)
 	{
 		logErrorLn("Connection::acceptConnection()  set nonblocking error! "<<coreStrError());
+		goto err_1;
+	}
+
+	socklen_t addrlen;
+	if (getpeername(connfd, (SA *)&mPeerAddr, &addrlen) < 0)
+	{
 		goto err_1;
 	}
 
@@ -125,6 +131,16 @@ int Connection::send(const void *data, size_t datalen)
 	}
 
 	return ::send(mFd, data, datalen, 0);
+}
+
+const char* Connection::getPeerIp(char *ip, int iplen) const
+{
+	return inet_ntop(AF_INET, &mPeerAddr.sin_addr, ip, iplen);
+}
+
+int Connection::getPeerPort() const
+{
+	return ntohs(mPeerAddr.sin_port);
 }
 
 int Connection::handleInputNotification(int fd)
