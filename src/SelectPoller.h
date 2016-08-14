@@ -3,6 +3,8 @@
 
 #include "EventPoller.h"
 
+NAMESPACE_BEG(tun)
+
 class SelectPoller : public EventPoller
 {
   public:
@@ -25,4 +27,6 @@ class SelectPoller : public EventPoller
 	int	mFdWriteCount;
 };
 
-#endif
+NAMESPACE_END // namespace tun
+
+#endif // __SELECTPOLLER_H__

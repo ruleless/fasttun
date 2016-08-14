@@ -1,5 +1,7 @@
 #include "SelectPoller.h"
 
+NAMESPACE_BEG(tun)
+
 SelectPoller::SelectPoller()
 		:EventPoller()
 		,mMaxFd(-1)
@@ -24,10 +26,7 @@ int SelectPoller::processPendingEvents(double maxWait)
 	nextTimeout.tv_sec = (int)maxWait;
 	nextTimeout.tv_usec = (int)((maxWait - (double)nextTimeout.tv_sec) * 1000000.0);
 
-	uint64 startTime = timestamp();
-
-	onStartMainThreadIdling();
-
+	uint64 startTime = getTimeStamp();
 	int countReady = 0;
 
 #ifdef _WIN32
@@ -41,9 +40,7 @@ int SelectPoller::processPendingEvents(double maxWait)
 		countReady = select(mMaxFd+1, &readFDs,	mFdWriteCount ? &writeFDs : NULL, NULL, &nextTimeout);
 	}
 
-	onEndMainThreadIdling();
-
-	mSpareTime += timestamp() - startTime;
+	mSpareTime += getTimeStamp() - startTime;
 	
 	if (countReady > 0)
 	{
@@ -51,10 +48,7 @@ int SelectPoller::processPendingEvents(double maxWait)
 	}
 	else if (countReady == -1)
 	{
-		{
-			// 			WARNING_MSG(fmt::format("EventDispatcher::processContinuously: "
-			// 									"error in select(): {}\n", __strerror()));
-		}
+		logWarningLn("EventDispatcher::processPendingEvents()  error in select() err:"<<coreStrError());
 	}
 
 	return countReady;
@@ -99,18 +93,14 @@ bool SelectPoller::doRegisterForRead(int fd)
 #ifndef _WIN32
 	if ((fd < 0) || (FD_SETSIZE <= fd))
 	{
-		// 		ERROR_MSG(fmt::format("SelectPoller::doRegisterForRead: "
-		// 			"Tried to register invalid fd {}. FD_SETSIZE ({})\n",
-		// 			fd, FD_SETSIZE));
+		logErrorLn("SelectPoller::doRegisterForRead()  Tried to register invalid fd("<<fd<<")  FD_SETSIZE("<<FD_SETSIZE<<")");		
 
 		return false;
 	}
 #else
 	if (mFdReadSet.fd_count >= FD_SETSIZE)
 	{
-		// 		ERROR_MSG(fmt::format("SelectPoller::doRegisterForRead: "
-		// 			"Tried to register invalid fd {}. FD_SETSIZE ({})\n",
-		// 			fd, FD_SETSIZE));
+		ErrorLn("SelectPoller::doRegisterForRead()  Tried to register invalid fd("<<fd<<")  FD_SETSIZE("<<FD_SETSIZE<<")");		
 
 		return false;
 	}
@@ -130,18 +120,14 @@ bool SelectPoller::doRegisterForWrite(int fd)
 #ifndef _WIN32
 	if ((fd < 0) || (FD_SETSIZE <= fd))
 	{
-		// 		ERROR_MSG(fmt::format("SelectPoller::doRegisterForWrite: "
-		// 			"Tried to register invalid fd {}. FD_SETSIZE ({})\n",
-		// 			fd, FD_SETSIZE));
+		logErrorLn("SelectPoller::doRegisterForWrite()  Tried to register invalid fd("<<fd<<")  FD_SETSIZE("<<FD_SETSIZE<<")");				
 
 		return false;
 	}
 #else
 	if (mFdWriteSet.fd_count >= FD_SETSIZE)
 	{
-		// 		ERROR_MSG(fmt::format("SelectPoller::doRegisterForWrite: "
-		// 			"Tried to register invalid fd {}. FD_SETSIZE ({})\n",
-		// 			fd, FD_SETSIZE));
+		ErrorLn("SelectPoller::doRegisterForWrite()  Tried to register invalid fd("<<fd<<")  FD_SETSIZE("<<FD_SETSIZE<<")");		
 
 		return false;
 	}
@@ -207,3 +193,5 @@ bool SelectPoller::doDeregisterForWrite(int fd)
 	--mFdWriteCount;
 	return true;
 }
+
+NAMESPACE_END // namespace tun

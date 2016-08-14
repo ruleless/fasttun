@@ -1,18 +1,28 @@
 #ifndef __EVENTPOLLOER_H__
 #define __EVENTPOLLOER_H__
 
-#include "common.h"
-#include "timestamp.h"
-#include "Network.h"
-#include "NetworkDef.h"
-#include "concurrency.h"
+#include "FasttunBase.h"
 #include <map>
 
 #ifndef _WIN32
 #define HAS_EPOLL
 #endif
 
-class InputNotificationHandler;
+NAMESPACE_BEG(tun)
+
+class InputNotificationHandler
+{
+  public:
+	virtual ~InputNotificationHandler() {};
+	virtual int handleInputNotification(int fd) = 0;
+};
+
+class OutputNotificationHandler
+{
+  public:
+	virtual ~OutputNotificationHandler() {};
+	virtual int handleOutputNotification(int fd) = 0;
+};
 
 class EventPoller
 {
@@ -66,4 +76,6 @@ class EventPoller
 	FDWriteHandlers mFdWriteHandlers;
 };
 
-#endif
+NAMESPACE_END // namespace tun
+
+#endif // __EVENTPOLLOER_H__

@@ -2,10 +2,12 @@
 #include "SelectPoller.h"
 #include "EpollPoller.h"
 
+NAMESPACE_BEG(tun)
+
 EventPoller::EventPoller()
 		:mSpareTime(0)
 		,mFdReadHandlers()
-		,mFdWriteHandlers()		
+		,mFdWriteHandlers()
 {
 }
 
@@ -124,28 +126,28 @@ int EventPoller::recalcMaxFD() const
 {
 	int readMaxFD = -1;
 
-	FDReadHandlers::const_iterator iFDReadHandler = mFdReadHandlers.begin();
-	while (iFDReadHandler != mFdReadHandlers.end())
+	FDReadHandlers::const_iterator readHandlerIter = mFdReadHandlers.begin();
+	while (readHandlerIter != mFdReadHandlers.end())
 	{
-		if (iFDReadHandler->first > readMaxFD)
+		if (readHandlerIter->first > readMaxFD)
 		{
-			readMaxFD = iFDReadHandler->first;
+			readMaxFD = readHandlerIter->first;
 		}
 
-		++iFDReadHandler;
+		++readHandlerIter;
 	}
 
 	int writeMaxFD = -1;
 
-	FDWriteHandlers::const_iterator iFDWriteHandler = mFdWriteHandlers.begin();
-	while (iFDWriteHandler != mFdWriteHandlers.end())
+	FDWriteHandlers::const_iterator writeHanderIter = mFdWriteHandlers.begin();
+	while (writeHanderIter != mFdWriteHandlers.end())
 	{
-		if (iFDWriteHandler->first > writeMaxFD)
+		if (writeHanderIter->first > writeMaxFD)
 		{
-			writeMaxFD = iFDWriteHandler->first;
+			writeMaxFD = writeHanderIter->first;
 		}
 
-		++iFDWriteHandler;
+		++writeHanderIter;
 	}
 
 	return max(readMaxFD, writeMaxFD);
@@ -159,3 +161,5 @@ EventPoller *EventPoller::create()
 	return new SelectPoller();
 #endif
 }
+
+NAMESPACE_END // namespace tun

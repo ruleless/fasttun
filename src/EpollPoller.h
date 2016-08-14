@@ -5,10 +5,12 @@
 
 #ifdef HAS_EPOLL
 
+NAMESPACE_BEG(tun)
+
 class EpollPoller : public EventPoller
 {
   public:
-	EpollPoller(int expectedSize = 10);
+	EpollPoller(int expectedSize = 20);
 	virtual ~EpollPoller();
 
 	virtual int getFileDescriptor() const
@@ -43,4 +45,7 @@ class EpollPoller : public EventPoller
 	int mEpfd;
 };
 
-#endif
+NAMESPACE_END // namespace tun
+
+#endif // HAS_EPOLL
+#endif // __POLLEREPOLL_H__
