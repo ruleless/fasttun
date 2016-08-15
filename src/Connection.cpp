@@ -23,14 +23,8 @@ bool Connection::acceptConnection(int connfd)
 		goto err_1;
 	}
 
-	// set nonblocking	
-	fstatus = fcntl(mFd, F_GETFL);
-	if (fstatus < 0)
-	{
-		logErrorLn("Connection::acceptConnection()  get file status error! "<<coreStrError());
-		goto err_1;
-	}
-	if (fcntl(mFd, F_SETFL, fstatus|O_NONBLOCK) < 0)
+	// set nonblocking		
+	if (!core::setNonblocking(mFd))
 	{
 		logErrorLn("Connection::acceptConnection()  set nonblocking error! "<<coreStrError());
 		goto err_1;

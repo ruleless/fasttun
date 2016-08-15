@@ -23,13 +23,7 @@ bool Listener::create(const char *ip, int port)
 	}
 
 	// set nonblocking	
-	int fstatus = fcntl(mFd, F_GETFL);
-	if (fstatus < 0)
-	{
-		logErrorLn("Listener::create()  get file status error! "<<coreStrError());
-		goto err_1;
-	}
-	if (fcntl(mFd, F_SETFL, fstatus|O_NONBLOCK) < 0)
+	if (!core::setNonblocking(mFd))
 	{
 		logErrorLn("Listener::create()  set nonblocking error! "<<coreStrError());
 		goto err_1;
@@ -38,7 +32,7 @@ bool Listener::create(const char *ip, int port)
 	struct sockaddr_in addr;
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(port);
-	if (inet_pton(AF_INET, ip, &addr.sin_addr) < 0)
+	if (inet_pton(AF_INET, ip, &addr.sin_addr) != 1)
 	{		
 		logErrorLn("Listener::create()  illegal ip("<<ip<<")");
 		goto err_1;
