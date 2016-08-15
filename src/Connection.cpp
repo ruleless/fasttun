@@ -14,10 +14,17 @@ bool Connection::acceptConnection(int connfd)
 		return false;
 	}
 
-	mFd = connfd;	
+	mFd = connfd;
+
+	int fstatus = 0;
+	socklen_t addrlen = sizeof(mPeerAddr);
+	if (getpeername(connfd, (SA *)&mPeerAddr, &addrlen) < 0)
+	{
+		goto err_1;
+	}
 
 	// set nonblocking	
-	int fstatus = fcntl(mFd, F_GETFL);
+	fstatus = fcntl(mFd, F_GETFL);
 	if (fstatus < 0)
 	{
 		logErrorLn("Connection::acceptConnection()  get file status error! "<<coreStrError());
@@ -27,13 +34,7 @@ bool Connection::acceptConnection(int connfd)
 	{
 		logErrorLn("Connection::acceptConnection()  set nonblocking error! "<<coreStrError());
 		goto err_1;
-	}
-
-	socklen_t addrlen;
-	if (getpeername(connfd, (SA *)&mPeerAddr, &addrlen) < 0)
-	{
-		goto err_1;
-	}
+	}	
 
 	if (!mEventPoller->registerForRead(mFd, this))
 	{

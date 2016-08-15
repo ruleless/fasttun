@@ -96,7 +96,7 @@ int Listener::handleInputNotification(int fd)
 		else
 		{
 			struct sockaddr_in addr;
-			socklen_t addrlen;
+			socklen_t addrlen = sizeof(addr);
 			if (getpeername(connfd, (SA *)&addr, &addrlen) == 0)
 			{
 				char ip[MAX_BUF] = {0};				
