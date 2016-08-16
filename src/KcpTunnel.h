@@ -71,7 +71,7 @@ class KcpTunnelGroup
 	
     virtual ~KcpTunnelGroup();
 
-	bool initilise(const char *localaddr, const char *remoteaddr);
+	bool initialise(const char *localaddr, const char *remoteaddr);
 	void finalise();
 
 	int _send(const void *data, size_t datalen);

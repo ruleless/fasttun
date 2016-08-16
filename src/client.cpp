@@ -1,8 +1,28 @@
 #include "FasttunBase.h"
 #include "Listener.h"
 #include "Connection.h"
+#include "KcpTunnel.h"
+#include "GlobalTunnel.h"
 
 using namespace tun;
+
+class ClientTunnel;
+static KcpTunnelGroup gTunnelManager;
+static ClientTunnel* gGlobalTunnel = NULL;
+
+//--------------------------------------------------------------------------
+class ClientTunnel : public GlobalTunnel
+{
+  public:
+    ClientTunnel(KcpTunnelGroup *pGroup)
+			:GlobalTunnel(pGroup)
+	{}
+	
+    virtual void onRecv(KcpTunnel *pTunnel, const void *data, size_t datelen)
+	{
+	}
+};
+//--------------------------------------------------------------------------
 
 //--------------------------------------------------------------------------
 class Proxy : public Listener::Handler, public Connection::Handler
@@ -54,6 +74,8 @@ class Proxy : public Listener::Handler, public Connection::Handler
 			return;
 		}
 
+		const char *hello = "hello world";
+		gGlobalTunnel->send(hello, strlen(hello)+1);
 		pConn->setEventHandler(this);
 		mConns.insert(std::pair<int, Connection *>(connfd, pConn));
 	}
@@ -121,7 +143,7 @@ class Proxy : public Listener::Handler, public Connection::Handler
 
 int main(int argc, char *argv[])
 {
-	// initilise tracer
+	// initialise tracer
 	core::createTrace();
 	core::output2Console();
 	core::output2Html("fasttun_client.html");
@@ -139,10 +161,33 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
+	if (!gTunnelManager.initialise("0.0.0.0:29900", "127.0.0.1:29901"))
+	{
+		logErrorLn("initialise Tunnel Manager error!");
+		delete netPoller;
+		core::closeTrace();
+		exit(1);
+	}
+
+	gGlobalTunnel = new ClientTunnel(&gTunnelManager);
+	if (!gGlobalTunnel->initialise())
+	{
+		logErrorLn("initialise GloablTunnel error!");
+		delete gGlobalTunnel;
+		delete netPoller;
+		core::closeTrace();
+		exit(1);
+	}
+
 	for (;;)
 	{
 		netPoller->processPendingEvents(0.016);
+		gTunnelManager.update();
 	}
+
+	gGlobalTunnel->finalise();
+	delete gGlobalTunnel;
+	gTunnelManager.finalise();
 
 	proxy.finalise();	
 	delete netPoller;

@@ -101,19 +101,19 @@ KcpTunnelGroup::~KcpTunnelGroup()
 {
 }
 
-bool KcpTunnelGroup::initilise(const char *localaddr, const char *remoteaddr)
+bool KcpTunnelGroup::initialise(const char *localaddr, const char *remoteaddr)
 {
 	// assign the local address
 	if (!core::getSocketAddress(localaddr, mLocalAddr))
 	{
-		logErrorLn("KcpTunnelGroup::initilise() localaddr format error! "<<localaddr);
+		logErrorLn("KcpTunnelGroup::initialise() localaddr format error! "<<localaddr);
 		return false;
 	}
 
 	// assign the remote address
 	if (!core::getSocketAddress(remoteaddr, mRemoteAddr))
 	{
-		logErrorLn("KcpTunnelGroup::initilise() remoteaddr format error! "<<remoteaddr);
+		logErrorLn("KcpTunnelGroup::initialise() remoteaddr format error! "<<remoteaddr);
 		return false;
 	}
 
@@ -129,7 +129,7 @@ bool KcpTunnelGroup::initilise(const char *localaddr, const char *remoteaddr)
 	// bind local address
 	if (bind(mFd, (SA *)&mLocalAddr, sizeof(mLocalAddr)) < 0)
 	{
-		logErrorLn("KcpTunnelGroup::initilise() bind local address err! "<<coreStrError());
+		logErrorLn("KcpTunnelGroup::initialise() bind local address err! "<<coreStrError());
 		return false;
 	}
 

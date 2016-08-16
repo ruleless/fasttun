@@ -14,21 +14,26 @@ LDFLAGS+= -L $(CILLDIR)/lib -lcill -lkmem -L $(ROOT)/lib -lkcp -lpthread -lrt -l
 RM= -rm -rf
 
 
-COMMON_OBJS:= EventPoller.o SelectPoller.o EpollPoller.o Connection.o Listener.o KcpTunnel.o
+COMMON_OBJS:= EventPoller.o SelectPoller.o EpollPoller.o Connection.o Listener.o \
+	KcpTunnel.o GlobalTunnel.o
 
-all:client.out
+all:client.out server.out
 
 client.out:$(COMMON_OBJS) client.o
-	$(CC) -o $@ $^ $(LDFLAGS)
+	$(CXX) -o $@ $^ $(LDFLAGS)
+server.out:$(COMMON_OBJS) server.o
+	$(CXX) -o $@ $^ $(LDFLAGS)
 
-client.o: client.cpp EventPoller.h Listener.h KcpTunnel.h
+client.o: client.cpp EventPoller.h Listener.h Connection.h KcpTunnel.h GlobalTunnel.h
+server.o: server.cpp EventPoller.h Listener.h Connection.h KcpTunnel.h GlobalTunnel.h
 
 EventPoller.o: EventPoller.cpp EventPoller.h SelectPoller.h EpollPoller.h
 SelectPoller.o: SelectPoller.cpp SelectPoller.h EventPoller.h
 EpollPoller.o: EpollPoller.cpp EpollPoller.h EventPoller.h
 Listener.o: Listener.cpp Listener.h EventPoller.h
 Connection.o: Connection.cpp Connection.h EventPoller.h
-KcpTunnel.o:KcpTunnel.cpp
+KcpTunnel.o: KcpTunnel.cpp KcpTunnel.h
+GlobalTunnel.o: GlobalTunnel.cpp GlobalTunnel.h KcpTunnel.h
 
 
 clean:

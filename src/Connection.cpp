@@ -16,7 +16,6 @@ bool Connection::acceptConnection(int connfd)
 
 	mFd = connfd;
 
-	int fstatus = 0;
 	socklen_t addrlen = sizeof(mPeerAddr);
 	if (getpeername(connfd, (SA *)&mPeerAddr, &addrlen) < 0)
 	{

@@ -32,4 +32,6 @@ using core::coreStrError;
 
 typedef struct sockaddr SA;
 
+#define GLOBAL_TUN_ID  100
+
 #endif // __FASTTUNBASE_H__
