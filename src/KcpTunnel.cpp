@@ -49,29 +49,28 @@ void KcpTunnel::update(uint32 current)
 	ikcp_update(mKcpCb, current);
 
 	core::MemoryStream buf;
-	int cursize = 0;
 	int oncelen = 1024;
 	buf.reserve(oncelen);
 	for (;;)
 	{
-		int recvlen = ikcp_recv(mKcpCb, (char *)(buf.data()+cursize), oncelen);
+		int recvlen = ikcp_recv(mKcpCb, (char *)(buf.data()+buf.wpos()), oncelen);
 		if (recvlen <= 0)
 		{
 			break;
 		}		
 		else if (recvlen < oncelen)
 		{
-			cursize += recvlen;
+			buf.wpos(buf.wpos()+recvlen);
 			break;			
 		}
 		else
 		{
-			cursize += recvlen;
-			buf.reserve(cursize+oncelen);
+			buf.wpos(buf.wpos()+recvlen);
+			buf.reserve(buf.length()+oncelen);
 		}
 	}
 
-	if (cursize > 0 && mHandler)
+	if (buf.length() > 0 && mHandler)
 	{
 		mHandler->onRecv(this, buf.data(), buf.length());
 	}
@@ -118,7 +117,7 @@ bool KcpTunnelGroup::initialise(const char *localaddr, const char *remoteaddr)
 	}
 
 	// create socket
-	mFd = socket(AF_INET, SOCK_STREAM, 0);
+	mFd = socket(AF_INET, SOCK_DGRAM, 0);
 	if (mFd < 0)
 		return false;
 
@@ -203,38 +202,48 @@ void KcpTunnelGroup::update()
 
 	// recv data from internet
 	core::MemoryStream buf;
-	int cursize = 0;
 	int oncelen = 1024;
 	buf.reserve(oncelen);
 	for (;;)
 	{
 		sockaddr_in addr;
 		socklen_t addrlen = sizeof(addr);
-		int recvlen = recvfrom(mFd, (char *)(buf.data()+cursize), oncelen, 0, (SA *)&addr, &addrlen);
+		int recvlen = recvfrom(mFd, (char *)(buf.data()+buf.wpos()), oncelen, 0, (SA *)&addr, &addrlen);
 		if (recvlen <= 0)
 		{
 			break;
 		}		
 		else if (recvlen < oncelen)
 		{
-			cursize += recvlen;
+			buf.wpos(buf.wpos()+recvlen);
 			break;			
 		}
 		else
 		{
-			cursize += recvlen;
-			buf.reserve(cursize+oncelen);
+			buf.wpos(buf.wpos()+recvlen);
+			buf.reserve(buf.length()+oncelen);
 		}
 	}
 
-	if (cursize > 0)
+	if (buf.length() > 0)
 	{
+		bool bAccepted = false;
 		Tunnels::iterator it = mTunnels.begin();
 		for (; it != mTunnels.end(); ++it)
 		{
 			KcpTunnel *pTunnel = it->second;
 			if (pTunnel && pTunnel->input(buf.data(), buf.length()))
+			{
+				bAccepted = true;
 				break;
+			}
+		}
+
+		if (!bAccepted)
+		{
+			logErrorLn("KcpTunnel() got a stream that has no acceptor! datalen="<<buf.length());
+			buf.hexlike();
+			buf.textlike();
 		}
 	}
 

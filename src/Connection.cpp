@@ -140,7 +140,6 @@ int Connection::getPeerPort() const
 int Connection::handleInputNotification(int fd)
 {
 	core::MemoryStream buf;
-	int cursize = 0;
 	int oncelen = 1024;
 	buf.reserve(oncelen);
 
@@ -148,7 +147,7 @@ int Connection::handleInputNotification(int fd)
 	bool bConnClosed = false;
 	for (;;)
 	{
-		int recvlen = recv(mFd, buf.data()+cursize, oncelen, 0);
+		int recvlen = recv(mFd, buf.data()+buf.wpos(), oncelen, 0);
 		if (recvlen < 0)
 		{
 			if (errno != EAGAIN)
@@ -162,17 +161,17 @@ int Connection::handleInputNotification(int fd)
 		}
 		else if (recvlen < oncelen)
 		{
-			cursize += recvlen;
+			buf.wpos(buf.wpos()+recvlen);
 			break;			
 		}
 		else
 		{
-			cursize += recvlen;
-			buf.reserve(cursize+oncelen);
+			buf.wpos(buf.wpos()+recvlen);
+			buf.reserve(buf.length()+oncelen);
 		}
 	}
 
-	if (cursize > 0 && mHandler)
+	if (buf.length() > 0 && mHandler)
 		mHandler->onRecv(this, buf.data(), buf.length());
 
 	if (mHandler)
