@@ -35,6 +35,7 @@ bool Connection::acceptConnection(int connfd)
 		goto err_1;
 	}
 
+	mConnStatus = ConnStatus_Connected;
 	return true;
 
 err_1:
@@ -97,6 +98,7 @@ bool Connection::connect(const char *ip, int port)
 		goto err_1;
 	}
 
+	mConnStatus = ConnStatus_Connecting;
 	return true;
 
 err_1:
@@ -114,6 +116,7 @@ void Connection::shutdown()
 	mEventPoller->deregisterForRead(mFd);
 	close(mFd);
 	mFd = -1;
+	mConnStatus = ConnStatus_Closed;
 }
 
 int Connection::send(const void *data, size_t datalen)
@@ -139,24 +142,32 @@ int Connection::getPeerPort() const
 
 int Connection::handleInputNotification(int fd)
 {
+	if (ConnStatus_Connecting == mConnStatus)
+	{
+		mConnStatus = ConnStatus_Connected;
+		if (mHandler)
+			mHandler->onConnected(this);
+	}
+	if (mConnStatus != ConnStatus_Connected)
+	{
+		return 0;
+	}
+	
 	core::MemoryStream buf;
 	int oncelen = 1024;
 	buf.reserve(oncelen);
-
-	bool bError = false;
-	bool bConnClosed = false;
 	for (;;)
 	{
 		int recvlen = recv(mFd, buf.data()+buf.wpos(), oncelen, 0);
 		if (recvlen < 0)
 		{
 			if (errno != EAGAIN)
-				bError = true;
+				mConnStatus = ConnStatus_Error;
 			break;
 		}
 		else if (recvlen == 0)
 		{
-			bConnClosed = true;
+			mConnStatus = ConnStatus_Closed;
 			break;
 		}
 		else if (recvlen < oncelen)
@@ -176,11 +187,11 @@ int Connection::handleInputNotification(int fd)
 
 	if (mHandler)
 	{
-		if (bError)
+		if (ConnStatus_Error == mConnStatus)
 			mHandler->onError(this);
-		else if (bConnClosed)
+		else if (ConnStatus_Closed == mConnStatus)
 			mHandler->onDisconnected(this);
-	}	
+	}
 
 	return 0;
 }

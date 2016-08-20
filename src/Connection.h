@@ -18,12 +18,21 @@ class Connection : public InputNotificationHandler
 		virtual void onDisconnected(Connection *pConn) {}
 
 		virtual void onRecv(Connection *pConn, const void *data, size_t datelen) = 0;
-		virtual void onError(Connection *pConn) {}
-		
+		virtual void onError(Connection *pConn) {}		
+	};
+
+	enum EConnStatus
+	{
+		ConnStatus_Closed,		
+		ConnStatus_Error,
+
+		ConnStatus_Connecting,
+		ConnStatus_Connected,
 	};
 	
     Connection(EventPoller *poller)
 			:mFd(-1)
+			,mConnStatus(ConnStatus_Closed)
 			,mHandler(NULL)
 			,mEventPoller(poller)
 	{
@@ -57,6 +66,7 @@ class Connection : public InputNotificationHandler
 	virtual int handleInputNotification(int fd);
   private:
 	int mFd;
+	EConnStatus mConnStatus;
 	sockaddr_in mPeerAddr;
 	Handler *mHandler; 
 
