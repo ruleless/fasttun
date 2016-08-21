@@ -15,7 +15,7 @@ RM= -rm -rf
 
 
 COMMON_OBJS:= EventPoller.o SelectPoller.o EpollPoller.o Connection.o Listener.o \
-	KcpTunnel.o GlobalTunnel.o
+	KcpTunnel.o GlobalTunnel.o FastConnection.o
 
 all:client.out server.out
 
@@ -34,6 +34,7 @@ Listener.o: Listener.cpp Listener.h EventPoller.h
 Connection.o: Connection.cpp Connection.h EventPoller.h
 KcpTunnel.o: KcpTunnel.cpp KcpTunnel.h
 GlobalTunnel.o: GlobalTunnel.cpp GlobalTunnel.h KcpTunnel.h
+FastConnection.o: FastConnection.cpp FastConnection.h EventPoller.h KcpTunnel.h Connection.h
 
 
 clean:

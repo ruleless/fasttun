@@ -2,6 +2,7 @@
 #define __FASTTUNBASE_H__
 
 #include "core/CillCore.h"
+#include <list>
 
 using core::mchar;
 using core::wchar;
@@ -33,5 +34,40 @@ using core::coreStrError;
 typedef struct sockaddr SA;
 
 #define GLOBAL_TUN_ID  100
+
+NAMESPACE_BEG(tun)
+
+template <class T, int MaxNum>
+class IDGenerator
+{
+  public:
+	bool genNewId(T& r)
+	{
+		if (mAvailableIds.empty())
+		{
+			return false;
+		}
+
+		r = mAvailableIds.front();
+		mAvailableIds.pop_front();
+		return true;
+	}
+
+	void restorId(const T &r)
+	{
+		mAvailableIds.push_back(r);
+	}
+
+  protected:
+	IDGenerator() {}	
+    virtual ~IDGenerator() {}
+	
+  protected:
+	typedef std::list<T> IDList;
+
+	IDList mAvailableIds;
+};
+
+NAMESPACE_END // namespace tun
 
 #endif // __FASTTUNBASE_H__

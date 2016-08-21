@@ -17,7 +17,7 @@ class Connection : public InputNotificationHandler
 		virtual void onConnected(Connection *pConn) {}
 		virtual void onDisconnected(Connection *pConn) {}
 
-		virtual void onRecv(Connection *pConn, const void *data, size_t datelen) = 0;
+		virtual void onRecv(Connection *pConn, const void *data, size_t datalen) = 0;
 		virtual void onError(Connection *pConn) {}		
 	};
 
@@ -57,6 +57,11 @@ class Connection : public InputNotificationHandler
 	inline void setEventHandler(Handler *h)
 	{
 		mHandler = h;
+	}
+
+	inline bool isConnected() const
+	{
+		return mConnStatus == ConnStatus_Connected;
 	}
 
 	const char* getPeerIp(char *ip, int iplen) const;

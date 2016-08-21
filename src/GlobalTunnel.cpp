@@ -35,7 +35,7 @@ int GlobalTunnel::send(const void *data, size_t datalen)
 	return -1;
 }
 
-void GlobalTunnel::onRecv(KcpTunnel *pTunnel, const void *data, size_t datelen)
+void GlobalTunnel::onRecv(KcpTunnel *pTunnel, const void *data, size_t datalen)
 {		
 }
 

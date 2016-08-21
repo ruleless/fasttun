@@ -23,7 +23,7 @@ class GlobalTunnel : public KcpTunnel::Handler
 
 	int send(const void *data, size_t datalen);
 
-	virtual void onRecv(KcpTunnel *pTunnel, const void *data, size_t datelen);
+	virtual void onRecv(KcpTunnel *pTunnel, const void *data, size_t datalen);
 	
   private:
 	KcpTunnel *mTun;

@@ -14,7 +14,7 @@ class KcpTunnel
   public:
 	struct Handler 
 	{
-		virtual void onRecv(KcpTunnel *pTunnel, const void *data, size_t datelen) = 0;
+		virtual void onRecv(KcpTunnel *pTunnel, const void *data, size_t datalen) = 0;
 	};
 
     KcpTunnel(KcpTunnelGroup *pGroup)

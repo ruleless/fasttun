@@ -18,7 +18,7 @@ class ClientTunnel : public GlobalTunnel
 			:GlobalTunnel(pGroup)
 	{}
 	
-    virtual void onRecv(KcpTunnel *pTunnel, const void *data, size_t datelen)
+    virtual void onRecv(KcpTunnel *pTunnel, const void *data, size_t datalen)
 	{
 	}
 };
@@ -92,7 +92,7 @@ class Proxy : public Listener::Handler, public Connection::Handler
 		onConnShut(pConn);
 	}
 
-	virtual void onRecv(Connection *pConn, const void *data, size_t datelen)
+	virtual void onRecv(Connection *pConn, const void *data, size_t datalen)
 	{
 	}
 	

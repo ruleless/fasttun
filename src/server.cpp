@@ -18,7 +18,7 @@ class ServerTunnel : public GlobalTunnel
 			:GlobalTunnel(pGroup)
 	{}
 	
-    virtual void onRecv(KcpTunnel *pTunnel, const void *data, size_t datelen)
+    virtual void onRecv(KcpTunnel *pTunnel, const void *data, size_t datalen)
 	{
 		const char *str = (const char *)data;
 		printf("recv:%s\n", str);
