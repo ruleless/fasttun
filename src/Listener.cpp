@@ -89,18 +89,23 @@ int Listener::handleInputNotification(int fd)
 		}
 		else
 		{
-			struct sockaddr_in addr;
-			socklen_t addrlen = sizeof(addr);
-			if (getpeername(connfd, (SA *)&addr, &addrlen) == 0)
+			struct sockaddr_in localAddr, remoteAddr;
+			socklen_t localAddrLen = sizeof(localAddr), remoteAddrLen = sizeof(remoteAddr);
+			if (getsockname(connfd, (SA *)&localAddr, &localAddrLen) == 0 &&
+				getpeername(connfd, (SA *)&remoteAddr, &remoteAddrLen) == 0)
 			{
-				char ip[MAX_BUF] = {0};				
-				if (inet_ntop(AF_INET, &addr.sin_addr, ip, sizeof(ip)))
+				char remoteip[MAX_BUF] = {0}, localip[MAX_BUF] = {0};
+				if (inet_ntop(AF_INET, &localAddr.sin_addr, localip, sizeof(localip)) &&
+					inet_ntop(AF_INET, &remoteAddr.sin_addr, remoteip, sizeof(remoteip)))
 				{
 					char acceptLog[1024] = {0};
-					snprintf(acceptLog, sizeof(acceptLog), "accept from %s:%d", ip, ntohs(addr.sin_port));
+					snprintf(acceptLog, sizeof(acceptLog), "[%s:%d] accept from %s:%d",
+							 localip, ntohs(localAddr.sin_port),
+							 remoteip, ntohs(remoteAddr.sin_port));
 					logTraceLn(acceptLog);
 				}
-			}
+			}			
+			
 			if (mHandler)
 			{
 				mHandler->onAccept(connfd);

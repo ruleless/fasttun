@@ -40,6 +40,7 @@ class ClientBridge : public Connection::Handler, public FastConnection::Handler
 		if (!mpIntConn->acceptConnection(connfd))
 		{
 			delete mpIntConn;
+			mpIntConn = NULL;
 			return false;
 		}
 		mpIntConn->setEventHandler(this);
@@ -49,7 +50,9 @@ class ClientBridge : public Connection::Handler, public FastConnection::Handler
 		{
 			mpIntConn->shutdown();
 			delete mpIntConn;
+			mpIntConn = NULL;
 			delete mpExtConn;
+			mpExtConn = NULL;
 			return false;
 		}
 		mpExtConn->setEventHandler(this);

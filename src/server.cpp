@@ -74,7 +74,7 @@ class ServerBridge : public Connection::Handler, public FastConnection::Handler
 	int getExtSockFd() const
 	{
 		if (mpExtConn)
-			mpExtConn->getSockFd();
+			return mpExtConn->getSockFd();
 		return -1;
 	}
 
