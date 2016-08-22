@@ -10,7 +10,8 @@ class ConvGen : public IDGenerator<uint32, MaxNum>
   public:
     ConvGen() : IDGen()
 	{
-		for (uint32 id = 100; id < id+MaxNum; ++id)
+		static const uint32 BEGID = 100;
+		for (uint32 id = BEGID; id < BEGID+MaxNum; ++id)
 		{
 			this->restorId(id);
 		}
@@ -26,20 +27,50 @@ static ConvGen<10000> s_convGen;
 //--------------------------------------------------------------------------
 
 FastConnection::~FastConnection()
-{}
+{
+	DataList::iterator it = mRemainData.begin();
+	for (; it != mRemainData.end(); ++it)
+	{
+		free((*it).data);		
+	}
+	mRemainData.clear();
+}
 
 bool FastConnection::acceptConnection(int connfd)
 {
 	shutdown();
 
+	uint32 conv = 0;
+	if (!s_convGen.genNewId(conv))
+	{
+		logErrorLn("FastConnection::acceptConnection() no available convids!");
+		return false;
+	}
+
+	// create a connection object on an exists socket 
 	mpConnection = new Connection(mEventPoller);
 	if (!mpConnection->acceptConnection(connfd))
 	{
 		delete mpConnection;
 		mpConnection = NULL;
+		s_convGen.restorId(conv);
 		return false;
 	}
 	mpConnection->setEventHandler(this);
+
+	// create kcp tunnel
+	mbTunnelConnected = false;
+	mpKcpTunnel = mpTunnelGroup->createTunnel(conv);
+	if (NULL == mpKcpTunnel)
+	{
+		s_convGen.restorId(conv);
+		return false;
+	}
+
+	mpKcpTunnel->setEventHandler(this);
+	MemoryStream stream;
+	stream<<conv;
+	sendMessage(MsgId_CreateKcpTunnel, stream.data(), stream.length());
 	
 	return true;
 }
@@ -65,8 +96,9 @@ void FastConnection::shutdown()
 	clearCurMsg();
 	if (mpKcpTunnel)
 	{
-		mpKcpTunnel->shutdown();
-		delete mpKcpTunnel;
+		s_convGen.restorId(mpKcpTunnel->getConv());
+		mpTunnelGroup->destroyTunnel(mpKcpTunnel);
+		mbTunnelConnected = false;
 		mpKcpTunnel = NULL;
 	}
 	if (mpConnection)
@@ -77,18 +109,56 @@ void FastConnection::shutdown()
 	}
 }
 
+int FastConnection::send(const void *data, size_t datalen)
+{
+	if (mpKcpTunnel && mbTunnelConnected)
+	{
+		return mpKcpTunnel->send(data, datalen);
+	}
+
+	Data d;
+	d.datalen = datalen;
+	d.data = (char *)malloc(datalen);
+	memcpy(d.data, data, datalen);
+	mRemainData.push_back(d);
+	return datalen;
+}
+
+void FastConnection::_flushAll()
+{
+	if (mpKcpTunnel && mbTunnelConnected)
+	{
+		DataList::iterator it = mRemainData.begin();
+		for (; it != mRemainData.end(); ++it)
+		{
+			const Data &d = *it;
+			if (d.data && d.datalen > 0)
+			{
+				mpKcpTunnel->send(d.data, d.datalen);
+			}
+			free(d.data);
+		}
+		mRemainData.clear();
+	}
+}
+
 void FastConnection::onConnected(Connection *pConn)
-{}
+{
+	char ip[MAX_BUF] = {0};
+	if (pConn->getPeerIp(ip, sizeof(ip)))
+	{
+		logTraceLn("conneted with "<<ip);
+	}
+}
 		
 void FastConnection::onDisconnected(Connection *pConn)
 {
 	char ip[MAX_BUF] = {0};
 	if (pConn->getPeerIp(ip, sizeof(ip)))
 	{
-		logErrorLn("FastConnection::onDisconnected() peer ip:"<<ip);
+		logTraceLn("disconneted with "<<ip);
 	}
 	
-	shutdown();
 	if (mpHandler)
 		mpHandler->onDisconnected(this);
 }
@@ -101,7 +171,7 @@ void FastConnection::onRecv(Connection *pConn, const void *data, size_t datalen)
 		size_t leftlen = parseMessage(pMsg, datalen);
 		if (MsgRcvState_Error == mMsgRcvstate)
 		{
-			shutdown();
+			onError(pConn);
 			break;
 		}
 		else if (MsgRcvState_RcvComplete == mMsgRcvstate)
@@ -127,16 +197,17 @@ void FastConnection::onError(Connection *pConn)
 	char ip[MAX_BUF] = {0};
 	if (pConn->getPeerIp(ip, sizeof(ip)))
 	{
-		logErrorLn("FastConnection::onError() peer ip"<<ip);
+		logErrorLn("FastConnection::onError() peer ip:"<<ip<<" reason:"<<coreStrError());
 	}
 	
-	shutdown();
 	if (mpHandler)
 		mpHandler->onError(this);
 }
 
-void FastConnection::onRecv(KcpTunnel *pTunnel, const void *data, size_t datelen)
-{	
+void FastConnection::onRecv(KcpTunnel *pTunnel, const void *data, size_t datalen)
+{
+	if (mpHandler)
+		mpHandler->onRecv(this, data, datalen);
 }
 
 size_t FastConnection::parseMessage(const void *data, size_t datalen)
@@ -216,12 +287,47 @@ void FastConnection::handleMessage(const void *data, size_t datalen)
 	stream.append(data, datalen);
 	assert(stream.length() > sizeof(int) && "handleMessage() stream.length() > sizeof(int)");
 
+	bool notifyKcpTunnelCreateFailed = false;
 	int msgid = 0;
-	stream>>msgid;
+	stream>>msgid;	
 	switch (msgid)
 	{
-		
+	case MsgId_CreateKcpTunnel:
+		{
+			uint32 conv = 0;
+			stream>>conv;
+			assert(NULL == mpKcpTunnel && "FastConnection::handleMessage() NULL == mpKcpTunnel");
+			mpKcpTunnel = mpTunnelGroup->createTunnel(conv);
+			if (NULL == mpKcpTunnel)
+			{
+				logErrorLn("FastConnection::handleMessage() fail to create kcp tunnel!");
+				notifyKcpTunnelCreateFailed = true;
+				break;
+			}
+			mbTunnelConnected = true;
+			sendMessage(MsgId_ConfirmCreateKcpTunnel, NULL, 0);
+			_flushAll();
+		}
+		break;
+	case MsgId_ConfirmCreateKcpTunnel:
+		{
+			if (NULL == mpKcpTunnel)
+			{
+				logErrorLn("FastConnection::handleMessage() we have no kcptunnel on server!");
+				notifyKcpTunnelCreateFailed = true;				
+				break;
+			}
+			mbTunnelConnected = true;
+			_flushAll();
+		}
+		break;
+	default:
+		logErrorLn("FastConnection::handleMessage() undefined message!");
+		break;
 	}
+
+	if (notifyKcpTunnelCreateFailed && mpHandler)
+		mpHandler->onCreateKcpTunnelFailed(this);
 }
 
 void FastConnection::sendMessage(int msgid, const void *data, size_t datalen)
@@ -241,7 +347,8 @@ void FastConnection::sendMessage(int msgid, const void *data, size_t datalen)
 	int msglen = sizeof(msgid)+sizeof(datalen);
 	stream<<msglen;
 	stream<<msgid;
-	stream.append(data, datalen);
+	if (data != NULL && datalen > 0)
+		stream.append(data, datalen);
 	if (mpConnection->send(stream.data(), stream.length()) != stream.length())
 	{
 		logErrorLn("FastConnection::sendMessage() sentlen is not supposed!");

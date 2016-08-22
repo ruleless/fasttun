@@ -50,7 +50,7 @@ bool Connection::connect(const char *ip, int port)
 	if (mFd >= 0)
 		shutdown();
 		
-	if (mFd < 0)
+	if (mFd >= 0)
 	{
 		logErrorLn("Connection::connect()  accept connetion error! the conn is in use!");
 		return false;
@@ -77,18 +77,17 @@ bool Connection::connect(const char *ip, int port)
 	}
 
 	// assign the server address
-	struct sockaddr_in servaddr;
-	servaddr.sin_family = AF_INET;
-	servaddr.sin_port = htons(port);
-	if (inet_pton(AF_INET, ip, &servaddr.sin_addr) < 0)
+	mPeerAddr.sin_family = AF_INET;
+	mPeerAddr.sin_port = htons(port);
+	if (inet_pton(AF_INET, ip, &mPeerAddr.sin_addr) < 0)
 	{
 		logErrorLn("Connection::connect()  illegal ip("<<ip<<")");
 		goto err_1;
 	}
 
-	if (::connect(mFd, (SA *)&servaddr, sizeof(servaddr)) < 0)
+	if (::connect(mFd, (SA *)&mPeerAddr, sizeof(mPeerAddr)) < 0)
 	{
-		if (errno != EAGAIN)
+		if (errno != EINPROGRESS)
 			goto err_1;
 	}
 
@@ -144,6 +143,19 @@ int Connection::handleInputNotification(int fd)
 {
 	if (ConnStatus_Connecting == mConnStatus)
 	{
+		int err = 0;
+		socklen_t errlen = sizeof(int);
+		if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &errlen) < 0 || err != 0)
+		{
+			if (err != 0)
+				errno = err;
+			
+			mConnStatus = ConnStatus_Error;
+			if (mHandler)
+				mHandler->onError(this);
+			
+			return 0;
+		}
 		mConnStatus = ConnStatus_Connected;
 		if (mHandler)
 			mHandler->onConnected(this);

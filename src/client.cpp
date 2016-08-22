@@ -2,41 +2,161 @@
 #include "Listener.h"
 #include "Connection.h"
 #include "KcpTunnel.h"
-#include "GlobalTunnel.h"
+#include "FastConnection.h"
 
 using namespace tun;
 
-class ClientTunnel;
 static KcpTunnelGroup gTunnelManager;
-static ClientTunnel* gGlobalTunnel = NULL;
 
 //--------------------------------------------------------------------------
-class ClientTunnel : public GlobalTunnel
+class ClientBridge : public Connection::Handler, public FastConnection::Handler
 {
   public:
-    ClientTunnel(KcpTunnelGroup *pGroup)
-			:GlobalTunnel(pGroup)
+	struct Handler
+	{
+		virtual void onIntConnDisconnected(ClientBridge *pBridge) = 0;
+		virtual void onIntConnError(ClientBridge *pBridge) = 0;
+	};
+	
+    ClientBridge(EventPoller *poller, Handler *l)
+			:mEventPoller(poller)
+			,mpHandler(l)
+			,mpIntConn(NULL)
+			,mpExtConn(NULL)
+			,mLastExtConnTime(0)
 	{}
 	
-    virtual void onRecv(KcpTunnel *pTunnel, const void *data, size_t datalen)
+    virtual ~ClientBridge()
 	{
+		shutdown();
 	}
+
+	bool acceptConnection(int connfd)
+	{
+		assert(NULL == mpIntConn && NULL == mpExtConn &&
+			   "NULL == mpIntConn && NULL == mpExtConn");
+
+		mpIntConn = new Connection(mEventPoller);
+		if (!mpIntConn->acceptConnection(connfd))
+		{
+			delete mpIntConn;
+			return false;
+		}
+		mpIntConn->setEventHandler(this);
+
+		mpExtConn = new FastConnection(mEventPoller, &gTunnelManager);
+		if (!mpExtConn->connect("127.0.0.1", 29900))
+		{
+			mpIntConn->shutdown();
+			delete mpIntConn;
+			delete mpExtConn;
+			return false;
+		}
+		mpExtConn->setEventHandler(this);
+		
+		return true;
+	}
+
+	void shutdown()
+	{
+		if (mpIntConn)
+		{
+			mpIntConn->shutdown();
+			delete mpIntConn;
+			mpIntConn = NULL;
+		}
+		if (mpExtConn)
+		{
+			mpExtConn->shutdown();
+			delete mpExtConn;
+			mpExtConn = NULL;
+		}
+	}
+
+	int getIntSockFd() const
+	{
+		if (mpIntConn)
+			return mpIntConn->getSockFd();
+		return -1;
+	}
+
+	Connection* getIntConn() const
+	{
+		return mpIntConn;
+	}
+
+	// Connection::Handler
+	virtual void onConnected(Connection *pConn) {}
+	virtual void onDisconnected(Connection *pConn)
+	{
+		if (mpHandler)
+			mpHandler->onIntConnDisconnected(this);
+	}
+
+	virtual void onRecv(Connection *pConn, const void *data, size_t datalen)
+	{
+		logTraceLn("clientint onRecv len="<<datalen);
+	}
+	
+	virtual void onError(Connection *pConn)
+	{
+		if (mpHandler)
+			mpHandler->onIntConnError(this);
+	}
+
+	// FastConnection::Handler
+	virtual void onDisconnected(FastConnection *pConn)
+	{
+		_reconnectExternal();
+	}
+	virtual void onError(FastConnection *pConn)
+	{
+		_reconnectExternal();
+	}
+	virtual void onCreateKcpTunnelFailed(FastConnection *pConn)
+	{
+		_reconnectExternal();
+	}	
+
+	virtual void onRecv(FastConnection *pConn, const void *data, size_t datalen)
+	{
+		logTraceLn("clientext onRecv len="<<datalen);
+	}
+
+	void _reconnectExternal()
+	{
+		ulong curtick = getTickCount();
+		if (curtick > mLastExtConnTime+300)
+		{
+			mLastExtConnTime = curtick;
+			mpExtConn->connect("127.0.0.1", 29900);
+		}		
+	}
+	
+  private:
+	EventPoller *mEventPoller;
+	Handler *mpHandler;
+	
+	Connection *mpIntConn;
+	FastConnection *mpExtConn;
+
+	ulong mLastExtConnTime;
 };
 //--------------------------------------------------------------------------
 
 //--------------------------------------------------------------------------
-class Proxy : public Listener::Handler, public Connection::Handler
+class Client : public Listener::Handler, public ClientBridge::Handler
 {
   public:
-    Proxy(EventPoller *poller)
-			:Connection::Handler()
+    Client(EventPoller *poller)
+			:Listener::Handler()
 			,mEventPoller(poller)
 			,mListener(poller)
 			,mConns()
 	{
 	}
 	
-    virtual ~Proxy()
+    virtual ~Client()
 	{
 	}
 
@@ -58,81 +178,77 @@ class Proxy : public Listener::Handler, public Connection::Handler
 		ConnMap::iterator it = mConns.begin();
 		for (; it != mConns.end(); ++it)
 		{
-			Connection *pConn = it->second;
-			if (pConn)
-				pConn->shutdown();
+			ClientBridge *bridge = it->second;
+			if (bridge)
+			{
+				bridge->shutdown();
+				delete bridge;
+			}
 		}
 		mConns.clear();
 	}
 
 	virtual void onAccept(int connfd)
 	{
-		Connection *pConn = new Connection(mEventPoller);
-		if (!pConn->acceptConnection(connfd))
+		ClientBridge *bridge = new ClientBridge(mEventPoller, this);
+		if (!bridge->acceptConnection(connfd))
 		{
-			delete pConn;
+			delete bridge;
 			return;
 		}
 
-		const char *hello = "hello world";
-		gGlobalTunnel->send(hello, strlen(hello)+1);
-		pConn->setEventHandler(this);
-		mConns.insert(std::pair<int, Connection *>(connfd, pConn));
+		mConns.insert(std::pair<int, ClientBridge *>(connfd, bridge));
 	}
 
-	virtual void onDisconnected(Connection *pConn)
+	virtual void onIntConnDisconnected(ClientBridge *pBridge)
 	{
 		char strSrc[1024] = {0};
-		if (getPeerAddrInfo(pConn, strSrc, sizeof(strSrc)))
+		if (getPeerAddrInfo(pBridge, strSrc, sizeof(strSrc)))
 		{
-			logWarningLn("from "<<strSrc<<"!  connection disconnected!"
-						 <<"  we now have "<<mConns.size()-1<<" connections!");
+			logWarningLn("from "<<strSrc<<"! connection disconnected!"
+						 <<" we now have "<<mConns.size()-1<<" connections!");
 		}		
 		
-		onConnShut(pConn);
-	}
-
-	virtual void onRecv(Connection *pConn, const void *data, size_t datalen)
-	{
+		onBridgeShut(pBridge);
 	}
 	
-	virtual void onError(Connection *pConn)
+	virtual void onIntConnError(ClientBridge *pBridge)
 	{
 		char strSrc[1024] = {0};
-		if (getPeerAddrInfo(pConn, strSrc, sizeof(strSrc)))
+		if (getPeerAddrInfo(pBridge, strSrc, sizeof(strSrc)))
 		{
-			logWarningLn("from "<<strSrc<<"!  got error on connection!"
-						 <<"  we now have "<<mConns.size()-1<<" connections!");
+			logWarningLn("from "<<strSrc<<"! got error on connection!"
+						 <<" we now have "<<mConns.size()-1<<" connections!");
 		}
-		
-		onConnShut(pConn);
-	}
+
+		onBridgeShut(pBridge);
+	}	   	
 	
   private:
-	void onConnShut(Connection *pConn)
+	void onBridgeShut(ClientBridge *pBridge)
 	{		
-		ConnMap::iterator it = mConns.find(pConn->getSockFd());
+		ConnMap::iterator it = mConns.find(pBridge->getIntSockFd());
 		if (it != mConns.end())
 		{			
 			mConns.erase(it);
 		}
 
-		pConn->shutdown();
-		delete pConn;
+		pBridge->shutdown();
+		delete pBridge;
 	}
 
-	char* getPeerAddrInfo(Connection *pConn, char *info, int len)
+	char* getPeerAddrInfo(ClientBridge *pBridge, char *info, int len)
 	{
 		char peerIp[MAX_BUF] = {0};
-		if (pConn->getPeerIp(peerIp, MAX_BUF))
+		if (pBridge->getIntConn() && pBridge->getIntConn()->getPeerIp(peerIp, MAX_BUF))
 		{
-			snprintf(info, len, "%s:%d", peerIp, pConn->getPeerPort());
+			snprintf(info, len, "%s:%d", peerIp, pBridge->getIntConn()->getPeerPort());
 			return info;
 		}
 		return NULL;
 	}	
   private:
-	typedef std::map<int, Connection *> ConnMap;
+	typedef std::map<int, ClientBridge *> ConnMap;
 	
 	EventPoller *mEventPoller;
 	Listener mListener;
@@ -151,11 +267,11 @@ int main(int argc, char *argv[])
 	// create event poller
 	EventPoller *netPoller = EventPoller::create();
 
-	// create proxy
-	Proxy proxy(netPoller);
-	if (!proxy.create())
+	// create client
+	Client cli(netPoller);
+	if (!cli.create())
 	{
-		logErrorLn("create proxy error!");
+		logErrorLn("create client error!");
 		delete netPoller;
 		core::closeTrace();
 		exit(1);
@@ -169,27 +285,14 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	gGlobalTunnel = new ClientTunnel(&gTunnelManager);
-	if (!gGlobalTunnel->initialise())
-	{
-		logErrorLn("initialise GloablTunnel error!");
-		delete gGlobalTunnel;
-		delete netPoller;
-		core::closeTrace();
-		exit(1);
-	}
-
 	for (;;)
 	{
 		netPoller->processPendingEvents(0.016);
 		gTunnelManager.update();
-	}
+	}	
 
-	gGlobalTunnel->finalise();
-	delete gGlobalTunnel;
 	gTunnelManager.finalise();
-
-	proxy.finalise();	
+	cli.finalise();	
 	delete netPoller;
 
 	// close tracer

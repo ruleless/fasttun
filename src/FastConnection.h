@@ -13,10 +13,13 @@ class FastConnection : public Connection::Handler, public KcpTunnel::Handler
   public:
 	class Handler
 	{
+	  public:
 		Handler() {}
 
 		virtual void onDisconnected(FastConnection *pConn) {}
 		virtual void onError(FastConnection *pConn) {}
+		
+		virtual void onCreateKcpTunnelFailed(FastConnection *pConn) {}
 
 		virtual void onRecv(FastConnection *pConn, const void *data, size_t datalen) {}
 	};
@@ -26,7 +29,9 @@ class FastConnection : public Connection::Handler, public KcpTunnel::Handler
 			,mpTunnelGroup(pGroup)
 			,mpConnection(NULL)
 			,mpKcpTunnel(NULL)
+			,mbTunnelConnected(false)
 			,mpHandler(NULL)
+			,mRemainData()
 			,mMsgRcvstate(MsgRcvState_NoData)
 			,mRcvdMsgLen(0)
 	{
@@ -40,6 +45,9 @@ class FastConnection : public Connection::Handler, public KcpTunnel::Handler
 	bool connect(const char *ip, int port);
 
 	void shutdown();
+
+	int send(const void *data, size_t datalen);
+	void _flushAll();
 	
 	// Connection::Handler
 	virtual void onConnected(Connection *pConn);
@@ -54,6 +62,18 @@ class FastConnection : public Connection::Handler, public KcpTunnel::Handler
 	inline void setEventHandler(Handler *h)
 	{
 		mpHandler = h;
+	}
+
+	inline int getSockFd() const
+	{
+		if (mpConnection)
+			return mpConnection->getSockFd();
+		return -1;
+	}
+
+	inline Connection* getConnection() const
+	{
+		return mpConnection;
 	}
 
   private:
@@ -83,14 +103,32 @@ class FastConnection : public Connection::Handler, public KcpTunnel::Handler
 		int len;
 		char *data;		
 	};
+
+	struct Data
+	{
+		size_t datalen;
+		char *data;
+	};
+
+	enum
+	{
+		MsgId_CreateKcpTunnel = 0,
+		MsgId_ConfirmCreateKcpTunnel,
+	};
+	
 	static const int MAX_MSG_LEN = 65535;
+	typedef std::list<Data> DataList;
 	
 	EventPoller *mEventPoller;
 	KcpTunnelGroup *mpTunnelGroup;
 
 	Connection *mpConnection;
 	KcpTunnel *mpKcpTunnel;
+	bool mbTunnelConnected;
+	
 	Handler *mpHandler;
+
+	DataList mRemainData;
 	
 	EMsgRcvState mMsgRcvstate;
 	MessageLenBuf mMsgLenRcvBuf;

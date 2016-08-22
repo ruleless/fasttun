@@ -29,6 +29,7 @@ using core::uintptr;
 using core::MemoryStream;
 
 using core::getTimeStamp;
+using core::getTickCount;
 using core::coreStrError;
 
 typedef struct sockaddr SA;

@@ -65,7 +65,7 @@ class Connection : public InputNotificationHandler
 	}
 
 	const char* getPeerIp(char *ip, int iplen) const;
-	int getPeerPort() const;
+	int getPeerPort() const;	
 
 	// InputNotificationHandler
 	virtual int handleInputNotification(int fd);
