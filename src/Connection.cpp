@@ -28,12 +28,13 @@ bool Connection::acceptConnection(int connfd)
 		logErrorLn("Connection::acceptConnection()  set nonblocking error! "<<coreStrError());
 		goto err_1;
 	}	
-
+	
 	if (!mEventPoller->registerForRead(mFd, this))
 	{
 		logErrorLn("Connection::acceptConnection()  registerForRead failed! "<<coreStrError());
 		goto err_1;
 	}
+	mbRegForRead = true;
 
 	mConnStatus = ConnStatus_Connected;
 	return true;
@@ -91,11 +92,12 @@ bool Connection::connect(const char *ip, int port)
 			goto err_1;
 	}
 
-	if (!mEventPoller->registerForRead(mFd, this))
+	if (!mEventPoller->registerForWrite(mFd, this))
 	{
-		logErrorLn("Connection::connect()  registerForRead failed! "<<coreStrError());
+		logErrorLn("Connection::connect()  registerForWrite failed! "<<coreStrError());
 		goto err_1;
 	}
+	mbRegForWrite = true;
 
 	mConnStatus = ConnStatus_Connecting;
 	return true;
@@ -112,7 +114,16 @@ void Connection::shutdown()
 	if (mFd < 0)
 		return;
 
-	mEventPoller->deregisterForRead(mFd);
+	if (mbRegForWrite)
+	{
+		mEventPoller->deregisterForWrite(mFd);
+		mbRegForWrite = false;
+	}
+	if (mbRegForRead)
+	{
+		mEventPoller->deregisterForRead(mFd);
+		mbRegForRead = false;
+	}
 	close(mFd);
 	mFd = -1;
 	mConnStatus = ConnStatus_Closed;
@@ -140,26 +151,7 @@ int Connection::getPeerPort() const
 }
 
 int Connection::handleInputNotification(int fd)
-{
-	if (ConnStatus_Connecting == mConnStatus)
-	{
-		int err = 0;
-		socklen_t errlen = sizeof(int);
-		if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &errlen) < 0 || err != 0)
-		{
-			if (err != 0)
-				errno = err;
-			
-			mConnStatus = ConnStatus_Error;
-			if (mHandler)
-				mHandler->onError(this);
-			
-			return 0;
-		}
-		mConnStatus = ConnStatus_Connected;
-		if (mHandler)
-			mHandler->onConnected(this);
-	}
+{	
 	if (mConnStatus != ConnStatus_Connected)
 	{
 		return 0;
@@ -203,6 +195,36 @@ int Connection::handleInputNotification(int fd)
 			mHandler->onError(this);
 		else if (ConnStatus_Closed == mConnStatus)
 			mHandler->onDisconnected(this);
+	}
+
+	return 0;
+}
+
+int Connection::handleOutputNotification(int fd)
+{
+	mbRegForWrite = false;
+	mEventPoller->deregisterForWrite(fd);
+	if (ConnStatus_Connecting == mConnStatus)
+	{
+		int err = 0;
+		socklen_t errlen = sizeof(int);
+		if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &errlen) < 0 || err != 0)
+		{
+			if (err != 0)
+				errno = err;
+			
+			mConnStatus = ConnStatus_Error;
+			if (mHandler)
+				mHandler->onError(this);
+			
+			return 0;
+		}
+		
+		mEventPoller->registerForRead(fd, this);
+		mbRegForRead = true;
+		mConnStatus = ConnStatus_Connected;
+		if (mHandler)
+			mHandler->onConnected(this);
 	}
 
 	return 0;

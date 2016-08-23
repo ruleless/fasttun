@@ -147,7 +147,7 @@ void FastConnection::onConnected(Connection *pConn)
 	char ip[MAX_BUF] = {0};
 	if (pConn->getPeerIp(ip, sizeof(ip)))
 	{
-		logTraceLn("conneted with "<<ip);
+		logTraceLn("conneted with "<<ip<<":"<<pConn->getPeerPort());
 	}
 }
 		
@@ -156,7 +156,7 @@ void FastConnection::onDisconnected(Connection *pConn)
 	char ip[MAX_BUF] = {0};
 	if (pConn->getPeerIp(ip, sizeof(ip)))
 	{
-		logTraceLn("disconneted with "<<ip);
+		logTraceLn("disconneted with "<<ip<<":"<<pConn->getPeerPort());
 	}
 	
 	if (mpHandler)
@@ -197,7 +197,7 @@ void FastConnection::onError(Connection *pConn)
 	char ip[MAX_BUF] = {0};
 	if (pConn->getPeerIp(ip, sizeof(ip)))
 	{
-		logErrorLn("FastConnection::onError() peer ip:"<<ip<<" reason:"<<coreStrError());
+		logErrorLn("FastConnection::onError() peer ip:"<<ip<<":"<<pConn->getPeerPort()<<" reason:"<<coreStrError());
 	}
 	
 	if (mpHandler)
@@ -256,7 +256,7 @@ size_t FastConnection::parseMessage(const void *data, size_t datalen)
 
 		if (copylen > 0)
 		{
-			memcpy(mCurMsg.data, pMsg, copylen);
+			memcpy(mCurMsg.data+mRcvdMsgLen, pMsg, copylen);
 			mRcvdMsgLen += copylen;
 			pMsg += copylen;
 			datalen -= copylen;
@@ -285,7 +285,7 @@ void FastConnection::handleMessage(const void *data, size_t datalen)
 {
 	MemoryStream stream;
 	stream.append(data, datalen);
-	assert(stream.length() > sizeof(int) && "handleMessage() stream.length() > sizeof(int)");
+	assert(stream.length() >= sizeof(int) && "handleMessage() stream.length() > sizeof(int)");
 
 	bool notifyKcpTunnelCreateFailed = false;
 	int msgid = 0;
@@ -304,6 +304,7 @@ void FastConnection::handleMessage(const void *data, size_t datalen)
 				notifyKcpTunnelCreateFailed = true;
 				break;
 			}
+			mpKcpTunnel->setEventHandler(this);
 			mbTunnelConnected = true;
 			sendMessage(MsgId_ConfirmCreateKcpTunnel, NULL, 0);
 			_flushAll();
@@ -344,7 +345,7 @@ void FastConnection::sendMessage(int msgid, const void *data, size_t datalen)
 	}
 	
 	MemoryStream stream;
-	int msglen = sizeof(msgid)+sizeof(datalen);
+	int msglen = sizeof(msgid)+datalen;
 	stream<<msglen;
 	stream<<msgid;
 	if (data != NULL && datalen > 0)

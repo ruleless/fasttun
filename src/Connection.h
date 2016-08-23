@@ -6,7 +6,7 @@
 
 NAMESPACE_BEG(tun)
 
-class Connection : public InputNotificationHandler
+class Connection : public InputNotificationHandler, public OutputNotificationHandler
 {
   public:
 	class Handler
@@ -35,6 +35,8 @@ class Connection : public InputNotificationHandler
 			,mConnStatus(ConnStatus_Closed)
 			,mHandler(NULL)
 			,mEventPoller(poller)
+			,mbRegForRead(false)
+			,mbRegForWrite(false)
 	{
 		memset(&mPeerAddr, 0, sizeof(mPeerAddr));
 		assert(mEventPoller && "Connection::mEventPoller != NULL");
@@ -69,6 +71,10 @@ class Connection : public InputNotificationHandler
 
 	// InputNotificationHandler
 	virtual int handleInputNotification(int fd);
+
+	// OutputNotificationHandler
+	virtual int handleOutputNotification(int fd);
+	
   private:
 	int mFd;
 	EConnStatus mConnStatus;
@@ -76,6 +82,8 @@ class Connection : public InputNotificationHandler
 	Handler *mHandler; 
 
 	EventPoller *mEventPoller;
+	bool mbRegForRead;
+	bool mbRegForWrite;
 };
 
 NAMESPACE_END // namespace tun 

@@ -23,11 +23,19 @@ class ServerBridge : public Connection::Handler, public FastConnection::Handler
 			,mpHandler(h)
 			,mpIntConn(NULL)
 			,mpExtConn(NULL)
+			,mRemainData()
 			,mLastExtConnTime(0)
 	{}
 	
     virtual ~ServerBridge()
-	{}
+	{
+		DataList::iterator it = mRemainData.begin();
+		for (; it != mRemainData.end(); ++it)
+		{
+			free((*it).data);		
+		}
+		mRemainData.clear();
+	}
 
 	bool acceptConnection(int connfd)
 	{
@@ -38,16 +46,19 @@ class ServerBridge : public Connection::Handler, public FastConnection::Handler
 		if (!mpExtConn->acceptConnection(connfd))
 		{
 			delete mpExtConn;
+			mpExtConn = NULL;
 			return false;
 		}
 		mpExtConn->setEventHandler(this);
 
 		mpIntConn = new Connection(mEventPoller);
-		if (!mpIntConn->connect("127.0.0.1", 5081))
+		if (!mpIntConn->connect("127.0.0.1", 5082))
 		{
 			mpExtConn->shutdown();
 			delete mpExtConn;
+			mpExtConn = NULL;
 			delete mpIntConn;
+			mpIntConn = NULL;
 			return false;
 		}
 		mpIntConn->setEventHandler(this);
@@ -84,15 +95,21 @@ class ServerBridge : public Connection::Handler, public FastConnection::Handler
 	}
 
 	// Connection::Handler
-	virtual void onConnected(Connection *pConn) {}
+	virtual void onConnected(Connection *pConn)
+	{
+		logTraceLn("connected with ss!");
+		_flushAll();
+	}
 	virtual void onDisconnected(Connection *pConn)
 	{
+		logTraceLn("disconnected with ss!");
 		_reconnectInternal();
 	}
 
 	virtual void onRecv(Connection *pConn, const void *data, size_t datalen)
 	{
 		logTraceLn("serverint onRecv len="<<datalen);
+		mpExtConn->send(data, datalen);
 	}
 	
 	virtual void onError(Connection *pConn)
@@ -120,25 +137,70 @@ class ServerBridge : public Connection::Handler, public FastConnection::Handler
 
 	virtual void onRecv(FastConnection *pConn, const void *data, size_t datalen)
 	{
-		logTraceLn("severext onRecv len="<<datalen);
+		logTraceLn("severext onRecv len="<<datalen);		
+		if (!mpIntConn->isConnected())
+		{
+			logErrorLn("recv from client! but we have no connection with ss!");
+			_reconnectInternal();
+
+			Data d;
+			d.datalen = datalen;
+			d.data = (char *)malloc(datalen);
+			memcpy(d.data, data, datalen);
+			mRemainData.push_back(d);
+		}
+		else
+		{
+			_flushAll();
+			mpIntConn->send(data, datalen);
+		}
 	}
 
 	void _reconnectInternal()
 	{
 		ulong curtick = getTickCount();
-		if (curtick > mLastExtConnTime+300)
+		if (curtick > mLastExtConnTime+1000)
 		{
-			mLastExtConnTime = curtick;
-			mpIntConn->connect("127.0.0.1", 5081);
+			mLastExtConnTime = curtick;			
+			mpIntConn->connect("127.0.0.1", 5082);
+			logTraceLn("reconnect ss!");
 		}		
+	}
+
+	void _flushAll()
+	{
+		if (mpIntConn->isConnected())
+		{
+			DataList::iterator it = mRemainData.begin();
+			for (; it != mRemainData.end(); ++it)
+			{
+				const Data &d = *it;
+				if (d.data && d.datalen > 0)
+				{
+					mpIntConn->send(d.data, d.datalen);
+				}
+				free(d.data);
+			}
+			mRemainData.clear();
+		}
 	}
 	
   private:
+	struct Data
+	{
+		size_t datalen;
+		char *data;
+	};
+
+	typedef std::list<Data> DataList;
+	
 	EventPoller *mEventPoller;
 	Handler *mpHandler;
 
 	Connection *mpIntConn;
 	FastConnection *mpExtConn;
+
+	DataList mRemainData;
 
 	ulong mLastExtConnTime;
 };

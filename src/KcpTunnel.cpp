@@ -242,8 +242,8 @@ void KcpTunnelGroup::update()
 		if (!bAccepted)
 		{
 			logErrorLn("KcpTunnel() got a stream that has no acceptor! datalen="<<buf.length());
-			buf.hexlike();
-			buf.textlike();
+			// buf.hexlike();
+			// buf.textlike();
 		}
 	}
 

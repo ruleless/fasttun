@@ -76,6 +76,13 @@ class FastConnection : public Connection::Handler, public KcpTunnel::Handler
 		return mpConnection;
 	}
 
+	inline bool isConnected() const
+	{
+		if (mpConnection)
+			return mpConnection->isConnected();
+		return false;
+	}
+
   private:
 	// return left data size
 	size_t parseMessage(const void *data, size_t datalen);

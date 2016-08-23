@@ -99,6 +99,9 @@ class ClientBridge : public Connection::Handler, public FastConnection::Handler
 	virtual void onRecv(Connection *pConn, const void *data, size_t datalen)
 	{
 		logTraceLn("clientint onRecv len="<<datalen);
+		mpExtConn->send(data, datalen);
+		if (!mpExtConn->isConnected())
+			_reconnectExternal();
 	}
 	
 	virtual void onError(Connection *pConn)
@@ -124,12 +127,13 @@ class ClientBridge : public Connection::Handler, public FastConnection::Handler
 	virtual void onRecv(FastConnection *pConn, const void *data, size_t datalen)
 	{
 		logTraceLn("clientext onRecv len="<<datalen);
+		mpIntConn->send(data, datalen);
 	}
 
 	void _reconnectExternal()
 	{
 		ulong curtick = getTickCount();
-		if (curtick > mLastExtConnTime+300)
+		if (curtick > mLastExtConnTime+1000)
 		{
 			mLastExtConnTime = curtick;
 			mpExtConn->connect("127.0.0.1", 29900);
