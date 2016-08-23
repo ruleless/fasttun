@@ -46,6 +46,7 @@ class ClientBridge : public Connection::Handler, public FastConnection::Handler
 		mpIntConn->setEventHandler(this);
 
 		mpExtConn = new FastConnection(mEventPoller, &gTunnelManager);
+		mLastExtConnTime = getTickCount();
 		if (!mpExtConn->connect("127.0.0.1", 29900))
 		{
 			mpIntConn->shutdown();

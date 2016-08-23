@@ -67,6 +67,7 @@ bool FastConnection::acceptConnection(int connfd)
 		return false;
 	}
 
+	logEmphasisLn("create tunnel in server! conv="<<conv);
 	mpKcpTunnel->setEventHandler(this);
 	MemoryStream stream;
 	stream<<conv;
@@ -97,6 +98,7 @@ void FastConnection::shutdown()
 	if (mpKcpTunnel)
 	{
 		s_convGen.restorId(mpKcpTunnel->getConv());
+		logEmphasisLn("destroy kcp tunnel! conv="<<mpKcpTunnel->getConv());
 		mpTunnelGroup->destroyTunnel(mpKcpTunnel);
 		mbTunnelConnected = false;
 		mpKcpTunnel = NULL;
@@ -113,6 +115,8 @@ int FastConnection::send(const void *data, size_t datalen)
 {
 	if (mpKcpTunnel && mbTunnelConnected)
 	{
+		if (mRemainData.size())
+			logErrorLn("bad data order!");
 		return mpKcpTunnel->send(data, datalen);
 	}
 
@@ -304,6 +308,9 @@ void FastConnection::handleMessage(const void *data, size_t datalen)
 				notifyKcpTunnelCreateFailed = true;
 				break;
 			}
+			
+			logEmphasisLn("create kcp tunnel! conv="<<conv);
+					
 			mpKcpTunnel->setEventHandler(this);
 			mbTunnelConnected = true;
 			sendMessage(MsgId_ConfirmCreateKcpTunnel, NULL, 0);

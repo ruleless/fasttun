@@ -48,32 +48,20 @@ void KcpTunnel::update(uint32 current)
 {
 	ikcp_update(mKcpCb, current);
 
-	core::MemoryStream buf;
-	int oncelen = 1024;
-	buf.reserve(oncelen);
-	for (;;)
+	int datalen = ikcp_peeksize(mKcpCb);
+	char *buf = NULL;
+	if (datalen > 0)
 	{
-		int recvlen = ikcp_recv(mKcpCb, (char *)(buf.data()+buf.wpos()), oncelen);
-		if (recvlen <= 0)
-		{
-			break;
-		}		
-		else if (recvlen < oncelen)
-		{
-			buf.wpos(buf.wpos()+recvlen);
-			break;			
-		}
-		else
-		{
-			buf.wpos(buf.wpos()+recvlen);
-			buf.reserve(buf.length()+oncelen);
-		}
-	}
+		buf = (char *)malloc(datalen);
+		assert(ikcp_recv(mKcpCb, buf, datalen) == datalen);
+	}	
 
-	if (buf.length() > 0 && mHandler)
+	if (datalen > 0)
 	{
-		mHandler->onRecv(this, buf.data(), buf.length());
-	}
+		if (mHandler)
+			mHandler->onRecv(this, buf, datalen);
+		free(buf);
+	}	
 }
 
 static int kcpOutput(const char *buf, int len, ikcpcb *kcp, void *user)
@@ -158,6 +146,7 @@ void KcpTunnelGroup::finalise()
 
 int KcpTunnelGroup::_send(const void *data, size_t datalen)
 {
+	logWarningLn("KcpTunnelGroup::_send datalen="<<datalen);
 	return sendto(mFd, data, datalen, 0, (SA *)&mRemoteAddr, sizeof(mRemoteAddr));
 }
 
@@ -201,38 +190,36 @@ void KcpTunnelGroup::update()
 	}
 
 	// recv data from internet
-	core::MemoryStream buf;
-	int oncelen = 1024;
-	buf.reserve(oncelen);
+	int oncelen = 8196;
+	int curlen = 0;
+	char *buf = (char *)malloc(oncelen);
 	for (;;)
 	{
 		sockaddr_in addr;
 		socklen_t addrlen = sizeof(addr);
-		int recvlen = recvfrom(mFd, (char *)(buf.data()+buf.wpos()), oncelen, 0, (SA *)&addr, &addrlen);
-		if (recvlen <= 0)
+		int recvlen = recvfrom(mFd, buf+curlen, oncelen, 0, (SA *)&addr, &addrlen);
+		
+		if (recvlen > 0)
+			curlen += recvlen;
+		
+		if (recvlen < oncelen)
 		{
-			break;
-		}		
-		else if (recvlen < oncelen)
-		{
-			buf.wpos(buf.wpos()+recvlen);
 			break;			
 		}
 		else
 		{
-			buf.wpos(buf.wpos()+recvlen);
-			buf.reserve(buf.length()+oncelen);
+			buf = (char *)realloc(buf, curlen+oncelen);
 		}
 	}
 
-	if (buf.length() > 0)
+	if (curlen > 0)
 	{
 		bool bAccepted = false;
 		Tunnels::iterator it = mTunnels.begin();
 		for (; it != mTunnels.end(); ++it)
 		{
 			KcpTunnel *pTunnel = it->second;
-			if (pTunnel && pTunnel->input(buf.data(), buf.length()))
+			if (pTunnel && pTunnel->input(buf, curlen))
 			{
 				bAccepted = true;
 				break;
@@ -241,11 +228,12 @@ void KcpTunnelGroup::update()
 
 		if (!bAccepted)
 		{
-			logErrorLn("KcpTunnel() got a stream that has no acceptor! datalen="<<buf.length());
+			logErrorLn("KcpTunnel() got a stream that has no acceptor! datalen="<<curlen);
 			// buf.hexlike();
 			// buf.textlike();
 		}
 	}
+	free(buf);
 
 	// update all tunnels
 	uint32 current = core::getTickCount();

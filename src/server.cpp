@@ -51,6 +51,7 @@ class ServerBridge : public Connection::Handler, public FastConnection::Handler
 		}
 		mpExtConn->setEventHandler(this);
 
+		mLastExtConnTime = getTickCount();
 		mpIntConn = new Connection(mEventPoller);
 		if (!mpIntConn->connect("127.0.0.1", 5082))
 		{
