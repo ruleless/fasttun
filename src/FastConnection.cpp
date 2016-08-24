@@ -116,7 +116,9 @@ int FastConnection::send(const void *data, size_t datalen)
 	if (mpKcpTunnel && mbTunnelConnected)
 	{
 		if (mRemainData.size())
-			logErrorLn("bad data order!");
+		{
+			_flushAll();
+		}
 		return mpKcpTunnel->send(data, datalen);
 	}
 
@@ -125,6 +127,7 @@ int FastConnection::send(const void *data, size_t datalen)
 	d.data = (char *)malloc(datalen);
 	memcpy(d.data, data, datalen);
 	mRemainData.push_back(d);
+	logEmphasisLn("to be remained! datalen="<<datalen);
 	return datalen;
 }
 

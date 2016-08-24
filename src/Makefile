@@ -17,11 +17,13 @@ RM= -rm -rf
 COMMON_OBJS:= EventPoller.o SelectPoller.o EpollPoller.o Connection.o Listener.o \
 	KcpTunnel.o FastConnection.o
 
-all:client.out server.out
+all:client.out server.out test.out
 
 client.out:$(COMMON_OBJS) client.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 server.out:$(COMMON_OBJS) server.o
+	$(CXX) -o $@ $^ $(LDFLAGS)
+test.out:$(COMMON_OBJS) test.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
 client.o: client.cpp EventPoller.h Listener.h Connection.h KcpTunnel.h FastConnection.h

@@ -20,6 +20,7 @@ bool KcpTunnel::create(uint32 conv)
 	if (NULL == mKcpCb)
 		return false;
 
+	ikcp_setmtu(mKcpCb, 4096);
 	mKcpCb->output = kcpOutput;
 	return true;
 }
