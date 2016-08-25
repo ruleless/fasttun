@@ -50,7 +50,7 @@ class KcpTunnel
 	
     virtual ~KcpTunnel();
 
-	bool create(uint32 conv);
+	bool create(uint32 conv, const KcpArg &arg);
 	void shutdown();
 
 	int send(const void *data, size_t datalen);	

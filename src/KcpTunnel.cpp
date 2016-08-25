@@ -11,7 +11,7 @@ KcpTunnel::~KcpTunnel()
 	delete mCache;
 }
 
-bool KcpTunnel::create(uint32 conv)
+bool KcpTunnel::create(uint32 conv, const KcpArg &arg)
 {
 	if (mKcpCb)
 		shutdown();
@@ -21,8 +21,9 @@ bool KcpTunnel::create(uint32 conv)
 	if (NULL == mKcpCb)
 		return false;
 
-	ikcp_setmtu(mKcpCb, 4096);
 	mKcpCb->output = kcpOutput;
+	ikcp_nodelay(mKcpCb, arg.nodelay, arg.interval, arg.resend, arg.nc);
+	ikcp_setmtu(mKcpCb, arg.mtu);	
 	return true;
 }
 
@@ -51,19 +52,16 @@ void KcpTunnel::update(uint32 current)
 	ikcp_update(mKcpCb, current);
 
 	int datalen = ikcp_peeksize(mKcpCb);
-	char *buf = NULL;
 	if (datalen > 0)
 	{
-		buf = (char *)malloc(datalen);
+		char *buf = (char *)malloc(datalen);
+		assert(buf != NULL && "ikcp_recv() malloc failed!");
 		assert(ikcp_recv(mKcpCb, buf, datalen) == datalen);
-	}	
 
-	if (datalen > 0)
-	{
 		if (mHandler)
 			mHandler->onRecv(this, buf, datalen);
 		free(buf);
-	}	
+	}
 }
 
 int KcpTunnel::_output(const void *data, size_t datalen)
@@ -82,6 +80,7 @@ int KcpTunnel::_output(const void *data, size_t datalen)
 		else
 		{
 			mCache->cache(data, datalen);
+			return datalen;
 		}
 	}
 }
@@ -203,7 +202,7 @@ KcpTunnel* KcpTunnelGroup::createTunnel(uint32 conv)
 	}
 	
 	KcpTunnel *pTunnel = new KcpTunnel(this);
-	if (!pTunnel->create(conv))
+	if (!pTunnel->create(conv, mKcpArg))
 	{
 		return NULL;
 	}
@@ -215,13 +214,15 @@ KcpTunnel* KcpTunnelGroup::createTunnel(uint32 conv)
 void KcpTunnelGroup::destroyTunnel(KcpTunnel *pTunnel)
 {	
 	uint32 conv = pTunnel->getConv();
-
-	pTunnel->shutdown();
+	
 	Tunnels::iterator it = mTunnels.find(conv);
 	if (it != mTunnels.end())
 	{
 		mTunnels.erase(it);
 	}
+
+	pTunnel->shutdown();
+	delete pTunnel;
 }
 
 void KcpTunnelGroup::update()
@@ -247,6 +248,8 @@ int KcpTunnelGroup::handleInputNotification(int fd)
 	sockaddr_in addr;
 	socklen_t addrlen = sizeof(addr);
 	int recvlen = recvfrom(fd, buf, maxlen, 0, (SA *)&addr, &addrlen);
+
+	// input to kcp
 	if (recvlen > 0)
 	{
 		bool bAccepted = false;
@@ -256,7 +259,8 @@ int KcpTunnelGroup::handleInputNotification(int fd)
 			KcpTunnel *pTunnel = it->second;
 			if (pTunnel && pTunnel->input(buf, recvlen))
 			{
-				pTunnel->setRemoteAddr((SA *)&addr, addrlen);
+				if (!assignedRemoteAddr())
+					pTunnel->setRemoteAddr((SA *)&addr, addrlen);
 				bAccepted = true;
 				break;
 			}
@@ -265,8 +269,6 @@ int KcpTunnelGroup::handleInputNotification(int fd)
 		if (!bAccepted)
 		{
 			logErrorLn("KcpTunnel() got a stream that has no acceptor! datalen="<<recvlen);
-			// buf.hexlike();
-			// buf.textlike();
 		}
 	}
 	free(buf);   	
