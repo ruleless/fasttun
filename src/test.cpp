@@ -265,7 +265,7 @@ class Client : public Listener::Handler, public ClientBridge::Handler
 		char strSrc[1024] = {0};
 		if (getPeerAddrInfo(pBridge, strSrc, sizeof(strSrc)))
 		{
-			logWarningLn("from "<<strSrc<<"! connection disconnected!"
+			logWarningLn("from "<<strSrc<<"! connection disconnected. reason:"<<coreStrError()
 						 <<" we now have "<<mConns.size()-1<<" connections!");
 		}		
 		
@@ -277,7 +277,7 @@ class Client : public Listener::Handler, public ClientBridge::Handler
 		char strSrc[1024] = {0};
 		if (getPeerAddrInfo(pBridge, strSrc, sizeof(strSrc)))
 		{
-			logWarningLn("from "<<strSrc<<"! got error on connection!"
+			logWarningLn("from "<<strSrc<<"! got error on connection! reason:"<<coreStrError()
 						 <<" we now have "<<mConns.size()-1<<" connections!");
 		}
 

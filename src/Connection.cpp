@@ -157,37 +157,36 @@ int Connection::handleInputNotification(int fd)
 		return 0;
 	}
 	
-	core::MemoryStream buf;
-	int oncelen = 1024;
-	buf.reserve(oncelen);
+	static const int oncelen = 1024;
+	char *buf = (char *)malloc(oncelen);
+	int curlen = 0;
 	for (;;)
 	{
-		int recvlen = recv(mFd, buf.data()+buf.wpos(), oncelen, 0);
-		if (recvlen < 0)
+		int recvlen = recv(mFd, buf+curlen, oncelen, 0);
+		if (recvlen > 0)
+			curlen += recvlen;
+
+		if (recvlen >= oncelen)
 		{
-			if (errno != EAGAIN)
-				mConnStatus = ConnStatus_Error;
-			break;
-		}
-		else if (recvlen == 0)
-		{
-			mConnStatus = ConnStatus_Closed;
-			break;
-		}
-		else if (recvlen < oncelen)
-		{
-			buf.wpos(buf.wpos()+recvlen);
-			break;			
+			buf = (char *)realloc(buf, curlen+oncelen);
 		}
 		else
 		{
-			buf.wpos(buf.wpos()+recvlen);
-			buf.reserve(buf.length()+oncelen);
+			if (recvlen < 0)
+			{
+				if (errno != EAGAIN && errno != EWOULDBLOCK)
+					mConnStatus = ConnStatus_Error;
+			}
+			else if (recvlen == 0)
+			{
+				mConnStatus = ConnStatus_Closed;
+			}
+			break;
 		}
 	}
 
-	if (buf.length() > 0 && mHandler)
-		mHandler->onRecv(this, buf.data(), buf.length());
+	if (curlen > 0 && mHandler)
+		mHandler->onRecv(this, buf, curlen);	
 
 	if (mHandler)
 	{
@@ -196,6 +195,7 @@ int Connection::handleInputNotification(int fd)
 		else if (ConnStatus_Closed == mConnStatus)
 			mHandler->onDisconnected(this);
 	}
+	free(buf);
 
 	return 0;
 }
