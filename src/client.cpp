@@ -6,7 +6,7 @@
 
 using namespace tun;
 
-static KcpTunnelGroup gTunnelManager;
+static KcpTunnelGroup *gTunnelManager = NULL;
 
 //--------------------------------------------------------------------------
 class ClientBridge : public Connection::Handler, public FastConnection::Handler
@@ -45,7 +45,7 @@ class ClientBridge : public Connection::Handler, public FastConnection::Handler
 		}
 		mpIntConn->setEventHandler(this);
 
-		mpExtConn = new FastConnection(mEventPoller, &gTunnelManager);
+		mpExtConn = new FastConnection(mEventPoller, gTunnelManager);
 		mLastExtConnTime = getTickCount();
 		if (!mpExtConn->connect("127.0.0.1", 29900))
 		{
@@ -285,7 +285,8 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	if (!gTunnelManager.initialise("0.0.0.0:29900", "127.0.0.1:29901"))
+	gTunnelManager = new KcpTunnelGroup(netPoller);
+	if (!gTunnelManager->create("0.0.0.0:29900", "127.0.0.1:29901"))
 	{
 		logErrorLn("initialise Tunnel Manager error!");
 		delete netPoller;
@@ -296,10 +297,11 @@ int main(int argc, char *argv[])
 	for (;;)
 	{
 		netPoller->processPendingEvents(0.016);
-		gTunnelManager.update();
-	}	
+		gTunnelManager->update();
+	}
 
-	gTunnelManager.finalise();
+	gTunnelManager->shutdown();
+	delete gTunnelManager;
 	cli.finalise();	
 	delete netPoller;
 

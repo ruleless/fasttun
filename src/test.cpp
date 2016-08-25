@@ -3,10 +3,9 @@
 #include "Connection.h"
 #include "KcpTunnel.h"
 #include "FastConnection.h"
+#include "Cache.h"
 
 using namespace tun;
-
-static KcpTunnelGroup gTunnelManager;
 
 //--------------------------------------------------------------------------
 class ClientBridge : public Connection::Handler
@@ -23,20 +22,16 @@ class ClientBridge : public Connection::Handler
 			,mpHandler(l)
 			,mpIntConn(NULL)
 			,mpExtConn(NULL)
-			,mRemainData()
+			,mCache(NULL)
 			,mLastExtConnTime(0)
-	{}
+	{
+		mCache = new MyCache(this);
+	}
 	
     virtual ~ClientBridge()
-	{
-		DataList::iterator it = mRemainData.begin();
-		for (; it != mRemainData.end(); ++it)
-		{
-			free((*it).data);		
-		}
-		mRemainData.clear();
-		
+	{		
 		shutdown();
+		delete mCache;
 	}
 
 	bool acceptConnection(int connfd)
@@ -124,12 +119,7 @@ class ClientBridge : public Connection::Handler
 			if (!mpExtConn->isConnected())
 			{
 				_reconnectExternal();
-				
-				Data d;
-				d.datalen = datalen;
-				d.data = (char *)malloc(datalen);
-				memcpy(d.data, data, datalen);
-				mRemainData.push_back(d);
+				mCache->cache(data, datalen);
 			}
 			else
 			{
@@ -168,29 +158,16 @@ class ClientBridge : public Connection::Handler
 	{
 		if (mpExtConn->isConnected())
 		{
-			DataList::iterator it = mRemainData.begin();
-			for (; it != mRemainData.end(); ++it)
-			{
-				const Data &d = *it;
-				if (d.data && d.datalen > 0)
-				{
-					mpExtConn->send(d.data, d.datalen);
-					logTraceLn("mpExtConn->send len="<<d.datalen);
-				}
-				free(d.data);
-			}
-			mRemainData.clear();
+			mCache->flushAll();
 		}
 	}
-	
-  private:
-	struct Data
+	void flush(const char *data, size_t datalen)
 	{
-		size_t datalen;
-		char *data;
-	};
-
-	typedef std::list<Data> DataList;
+		mpExtConn->send(data, datalen);
+	}
+	
+  private:	
+	typedef Cache<ClientBridge> MyCache;
 	
 	EventPoller *mEventPoller;
 	Handler *mpHandler;
@@ -198,7 +175,7 @@ class ClientBridge : public Connection::Handler
 	Connection *mpIntConn;
 	Connection *mpExtConn;
 
-	DataList mRemainData;
+	MyCache *mCache;
 
 	ulong mLastExtConnTime;
 };
@@ -335,23 +312,13 @@ int main(int argc, char *argv[])
 		delete netPoller;
 		core::closeTrace();
 		exit(1);
-	}
-
-	if (!gTunnelManager.initialise("0.0.0.0:29900", "127.0.0.1:29901"))
-	{
-		logErrorLn("initialise Tunnel Manager error!");
-		delete netPoller;
-		core::closeTrace();
-		exit(1);
-	}
+	}	
 
 	for (;;)
 	{
 		netPoller->processPendingEvents(0.016);
-		gTunnelManager.update();
 	}	
 
-	gTunnelManager.finalise();
 	cli.finalise();	
 	delete netPoller;
 

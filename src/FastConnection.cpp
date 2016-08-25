@@ -28,12 +28,7 @@ static ConvGen<10000> s_convGen;
 
 FastConnection::~FastConnection()
 {
-	DataList::iterator it = mRemainData.begin();
-	for (; it != mRemainData.end(); ++it)
-	{
-		free((*it).data);		
-	}
-	mRemainData.clear();
+	delete mCache;
 }
 
 bool FastConnection::acceptConnection(int connfd)
@@ -67,7 +62,6 @@ bool FastConnection::acceptConnection(int connfd)
 		return false;
 	}
 
-	logEmphasisLn("create tunnel in server! conv="<<conv);
 	mpKcpTunnel->setEventHandler(this);
 	MemoryStream stream;
 	stream<<conv;
@@ -98,7 +92,6 @@ void FastConnection::shutdown()
 	if (mpKcpTunnel)
 	{
 		s_convGen.restorId(mpKcpTunnel->getConv());
-		logEmphasisLn("destroy kcp tunnel! conv="<<mpKcpTunnel->getConv());
 		mpTunnelGroup->destroyTunnel(mpKcpTunnel);
 		mbTunnelConnected = false;
 		mpKcpTunnel = NULL;
@@ -115,38 +108,25 @@ int FastConnection::send(const void *data, size_t datalen)
 {
 	if (mpKcpTunnel && mbTunnelConnected)
 	{
-		if (mRemainData.size())
-		{
-			_flushAll();
-		}
+		_flushAll();
 		return mpKcpTunnel->send(data, datalen);
 	}
 
-	Data d;
-	d.datalen = datalen;
-	d.data = (char *)malloc(datalen);
-	memcpy(d.data, data, datalen);
-	mRemainData.push_back(d);
-	logEmphasisLn("to be remained! datalen="<<datalen);
+	mCache->cache(data, datalen);
 	return datalen;
 }
 
 void FastConnection::_flushAll()
 {
-	if (mpKcpTunnel && mbTunnelConnected)
+	if (mpKcpTunnel && mbTunnelConnected && !mCache->empty())
 	{
-		DataList::iterator it = mRemainData.begin();
-		for (; it != mRemainData.end(); ++it)
-		{
-			const Data &d = *it;
-			if (d.data && d.datalen > 0)
-			{
-				mpKcpTunnel->send(d.data, d.datalen);
-			}
-			free(d.data);
-		}
-		mRemainData.clear();
+		mCache->flushAll();
 	}
+}
+
+void FastConnection::flush(const void *data, size_t datalen)
+{
+	mpKcpTunnel->send(data, datalen);
 }
 
 void FastConnection::onConnected(Connection *pConn)
@@ -312,8 +292,6 @@ void FastConnection::handleMessage(const void *data, size_t datalen)
 				break;
 			}
 			
-			logEmphasisLn("create kcp tunnel! conv="<<conv);
-					
 			mpKcpTunnel->setEventHandler(this);
 			mbTunnelConnected = true;
 			sendMessage(MsgId_ConfirmCreateKcpTunnel, NULL, 0);

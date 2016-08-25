@@ -5,6 +5,7 @@
 #include "EventPoller.h"
 #include "KcpTunnel.h"
 #include "Connection.h"
+#include "Cache.h"
 
 NAMESPACE_BEG(tun)
 
@@ -31,12 +32,13 @@ class FastConnection : public Connection::Handler, public KcpTunnel::Handler
 			,mpKcpTunnel(NULL)
 			,mbTunnelConnected(false)
 			,mpHandler(NULL)
-			,mRemainData()
+			,mCache(NULL)
 			,mMsgRcvstate(MsgRcvState_NoData)
 			,mRcvdMsgLen(0)
 	{
 		memset(&mMsgLenRcvBuf, 0, sizeof(mMsgLenRcvBuf));
 		memset(&mCurMsg, 0, sizeof(mCurMsg));
+		mCache = new MyCache(this);
 	}
 	
     virtual ~FastConnection();
@@ -48,6 +50,7 @@ class FastConnection : public Connection::Handler, public KcpTunnel::Handler
 
 	int send(const void *data, size_t datalen);
 	void _flushAll();
+	void flush(const void *data, size_t datalen);
 	
 	// Connection::Handler
 	virtual void onConnected(Connection *pConn);
@@ -109,13 +112,7 @@ class FastConnection : public Connection::Handler, public KcpTunnel::Handler
 	{
 		int len;
 		char *data;		
-	};
-
-	struct Data
-	{
-		size_t datalen;
-		char *data;
-	};
+	};	
 
 	enum
 	{
@@ -124,7 +121,7 @@ class FastConnection : public Connection::Handler, public KcpTunnel::Handler
 	};
 	
 	static const int MAX_MSG_LEN = 65535;
-	typedef std::list<Data> DataList;
+	typedef Cache<FastConnection> MyCache;
 	
 	EventPoller *mEventPoller;
 	KcpTunnelGroup *mpTunnelGroup;
@@ -135,7 +132,7 @@ class FastConnection : public Connection::Handler, public KcpTunnel::Handler
 	
 	Handler *mpHandler;
 
-	DataList mRemainData;
+	MyCache *mCache;
 	
 	EMsgRcvState mMsgRcvstate;
 	MessageLenBuf mMsgLenRcvBuf;

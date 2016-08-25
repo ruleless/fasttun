@@ -3,10 +3,11 @@
 #include "Connection.h"
 #include "KcpTunnel.h"
 #include "FastConnection.h"
+#include "Cache.h"
 
 using namespace tun;
 
-static KcpTunnelGroup gTunnelManager;
+static KcpTunnelGroup *gTunnelManager = NULL;
 
 //--------------------------------------------------------------------------
 class ServerBridge : public Connection::Handler, public FastConnection::Handler
@@ -23,18 +24,15 @@ class ServerBridge : public Connection::Handler, public FastConnection::Handler
 			,mpHandler(h)
 			,mpIntConn(NULL)
 			,mpExtConn(NULL)
-			,mRemainData()
+			,mCache(NULL)
 			,mLastExtConnTime(0)
-	{}
+	{
+		mCache = new MyCache(this);
+	}
 	
     virtual ~ServerBridge()
 	{
-		DataList::iterator it = mRemainData.begin();
-		for (; it != mRemainData.end(); ++it)
-		{
-			free((*it).data);		
-		}
-		mRemainData.clear();
+		delete mCache;
 	}
 
 	bool acceptConnection(int connfd)
@@ -42,7 +40,7 @@ class ServerBridge : public Connection::Handler, public FastConnection::Handler
 		assert(NULL == mpIntConn && NULL == mpExtConn &&
 			   "NULL == mpIntConn && NULL == mpExtConn");
 
-		mpExtConn = new FastConnection(mEventPoller, &gTunnelManager);
+		mpExtConn = new FastConnection(mEventPoller, gTunnelManager);
 		if (!mpExtConn->acceptConnection(connfd))
 		{
 			delete mpExtConn;
@@ -143,12 +141,7 @@ class ServerBridge : public Connection::Handler, public FastConnection::Handler
 		{
 			logErrorLn("recv from client! but we have no connection with ss!");
 			_reconnectInternal();
-
-			Data d;
-			d.datalen = datalen;
-			d.data = (char *)malloc(datalen);
-			memcpy(d.data, data, datalen);
-			mRemainData.push_back(d);
+			mCache->cache(data, datalen);
 		}
 		else
 		{
@@ -172,28 +165,16 @@ class ServerBridge : public Connection::Handler, public FastConnection::Handler
 	{
 		if (mpIntConn->isConnected())
 		{
-			DataList::iterator it = mRemainData.begin();
-			for (; it != mRemainData.end(); ++it)
-			{
-				const Data &d = *it;
-				if (d.data && d.datalen > 0)
-				{
-					mpIntConn->send(d.data, d.datalen);
-				}
-				free(d.data);
-			}
-			mRemainData.clear();
+			mCache->flushAll();
 		}
 	}
-	
-  private:
-	struct Data
+	void flush(const void *data, size_t len)
 	{
-		size_t datalen;
-		char *data;
-	};
-
-	typedef std::list<Data> DataList;
+		mpIntConn->send(data, len);
+	}
+	
+  private:	
+	typedef Cache<ServerBridge> MyCache;
 	
 	EventPoller *mEventPoller;
 	Handler *mpHandler;
@@ -201,7 +182,7 @@ class ServerBridge : public Connection::Handler, public FastConnection::Handler
 	Connection *mpIntConn;
 	FastConnection *mpExtConn;
 
-	DataList mRemainData;
+	MyCache *mCache;
 
 	ulong mLastExtConnTime;
 };
@@ -341,7 +322,8 @@ int main(int argc, char *argv[])
 		exit(1);
 	}	
 
-	if (!gTunnelManager.initialise("0.0.0.0:29901", "127.0.0.1:29900"))
+	gTunnelManager = new KcpTunnelGroup(netPoller);
+	if (!gTunnelManager->create("0.0.0.0:29901"))
 	{
 		logErrorLn("initialise Tunnel Manager error!");
 		delete netPoller;
@@ -352,10 +334,11 @@ int main(int argc, char *argv[])
 	for (;;)
 	{
 		netPoller->processPendingEvents(0.016);
-		gTunnelManager.update();
+		gTunnelManager->update();
 	}
 	
-	gTunnelManager.finalise();
+	gTunnelManager->shutdown();
+	delete gTunnelManager;
 	svr.finalise();
 	delete netPoller;
 

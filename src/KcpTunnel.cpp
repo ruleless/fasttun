@@ -8,6 +8,7 @@ static int kcpOutput(const char *buf, int len, ikcpcb *kcp, void *user);
 KcpTunnel::~KcpTunnel()
 {
 	shutdown();
+	delete mCache;
 }
 
 bool KcpTunnel::create(uint32 conv)
@@ -65,20 +66,45 @@ void KcpTunnel::update(uint32 current)
 	}	
 }
 
+int KcpTunnel::_output(const void *data, size_t datalen)
+{
+	if (mGroup->assignedRemoteAddr())
+	{
+		return mGroup->_output(data, datalen);
+	}
+	else
+	{
+		if (assignedRemoteAddr())
+		{
+			_flushAll();
+			return sendto(mGroup->getSockFd(), data, datalen, 0, (SA *)&mRemoteAddr, sizeof(mRemoteAddr));
+		}
+		else
+		{
+			mCache->cache(data, datalen);
+		}
+	}
+}
+
+void KcpTunnel::_flushAll()
+{
+	if (assignedRemoteAddr())
+	{
+		mCache->flushAll();
+	}
+}
+
+void KcpTunnel::flush(const void *data, size_t datalen)
+{
+	sendto(mGroup->getSockFd(), data, datalen, 0, (SA *)&mRemoteAddr, sizeof(mRemoteAddr));
+}
+
 static int kcpOutput(const char *buf, int len, ikcpcb *kcp, void *user)
 {
 	KcpTunnel *pTunnel = (KcpTunnel *)user;
 	if (pTunnel)
 	{
-		KcpTunnelGroup *pGroup = pTunnel->getGroup();
-		if (pGroup)
-		{
-			int sentlen = pGroup->_send(buf, len);
-			if (sentlen != len)
-			{
-				logErrorLn("kcpoutput() send error! conv="<<pTunnel->getConv()<<" datalen="<<len<<" sentlen="<<sentlen);
-			}
-		}
+		assert(pTunnel->_output(buf, len) == len && "kcp outputed len illegal");		
 	}
 	return 0;
 }
@@ -89,21 +115,29 @@ KcpTunnelGroup::~KcpTunnelGroup()
 {
 }
 
-bool KcpTunnelGroup::initialise(const char *localaddr, const char *remoteaddr)
+bool KcpTunnelGroup::create(const char *localaddr, const char *remoteaddr)
 {
 	// assign the local address
 	if (!core::getSocketAddress(localaddr, mLocalAddr))
 	{
-		logErrorLn("KcpTunnelGroup::initialise() localaddr format error! "<<localaddr);
+		logErrorLn("KcpTunnelGroup::create() localaddr format error! "<<localaddr);
 		return false;
 	}
 
 	// assign the remote address
-	if (!core::getSocketAddress(remoteaddr, mRemoteAddr))
+	if (remoteaddr)
 	{
-		logErrorLn("KcpTunnelGroup::initialise() remoteaddr format error! "<<remoteaddr);
-		return false;
+		mbAssignedRemoteAddr = true;
+		if (!core::getSocketAddress(remoteaddr, mRemoteAddr))
+		{
+			logErrorLn("KcpTunnelGroup::create() remoteaddr format error! "<<remoteaddr);
+			return false;
+		}
 	}
+	else
+	{
+		mbAssignedRemoteAddr = false;
+	}	
 
 	// create socket
 	mFd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -117,14 +151,21 @@ bool KcpTunnelGroup::initialise(const char *localaddr, const char *remoteaddr)
 	// bind local address
 	if (bind(mFd, (SA *)&mLocalAddr, sizeof(mLocalAddr)) < 0)
 	{
-		logErrorLn("KcpTunnelGroup::initialise() bind local address err! "<<coreStrError());
+		logErrorLn("KcpTunnelGroup::create() bind local address err! "<<coreStrError());
+		return false;
+	}
+
+	// register for event
+	if (!mEventPoller->registerForRead(mFd, this))
+	{
+		logErrorLn("KcpTunnelGroup::create() register error!");
 		return false;
 	}
 
 	return true;
 }
 
-void KcpTunnelGroup::finalise()
+void KcpTunnelGroup::shutdown()
 {
 	Tunnels::iterator it = mTunnels.begin();
 	for (; it != mTunnels.end(); ++it)
@@ -140,14 +181,15 @@ void KcpTunnelGroup::finalise()
 	
 	if (mFd >= 0)
 	{
+		mEventPoller->deregisterForRead(mFd);
 		close(mFd);
 		mFd = -1;
 	}
 }
 
-int KcpTunnelGroup::_send(const void *data, size_t datalen)
+int KcpTunnelGroup::_output(const void *data, size_t datalen)
 {
-	logWarningLn("KcpTunnelGroup::_send datalen="<<datalen);
+	assert(mbAssignedRemoteAddr && "KcpTunnelGroup::_output no remote address");
 	return sendto(mFd, data, datalen, 0, (SA *)&mRemoteAddr, sizeof(mRemoteAddr));
 }
 
@@ -183,59 +225,7 @@ void KcpTunnelGroup::destroyTunnel(KcpTunnel *pTunnel)
 }
 
 void KcpTunnelGroup::update()
-{
-	if (mFd < 0)
-	{
-		logErrorLn("KcpTunnelGroup::update() we did not create socket yet!");
-		return;
-	}
-
-	// recv data from internet
-	int oncelen = 8196;
-	int curlen = 0;
-	char *buf = (char *)malloc(oncelen);
-	for (;;)
-	{
-		sockaddr_in addr;
-		socklen_t addrlen = sizeof(addr);
-		int recvlen = recvfrom(mFd, buf+curlen, oncelen, 0, (SA *)&addr, &addrlen);
-		
-		if (recvlen > 0)
-			curlen += recvlen;
-		
-		if (recvlen < oncelen)
-		{
-			break;			
-		}
-		else
-		{
-			buf = (char *)realloc(buf, curlen+oncelen);
-		}
-	}
-
-	if (curlen > 0)
-	{
-		bool bAccepted = false;
-		Tunnels::iterator it = mTunnels.begin();
-		for (; it != mTunnels.end(); ++it)
-		{
-			KcpTunnel *pTunnel = it->second;
-			if (pTunnel && pTunnel->input(buf, curlen))
-			{
-				bAccepted = true;
-				break;
-			}
-		}
-
-		if (!bAccepted)
-		{
-			logErrorLn("KcpTunnel() got a stream that has no acceptor! datalen="<<curlen);
-			// buf.hexlike();
-			// buf.textlike();
-		}
-	}
-	free(buf);
-
+{   
 	// update all tunnels
 	uint32 current = core::getTickCount();
 	Tunnels::iterator it = mTunnels.begin();
@@ -245,6 +235,41 @@ void KcpTunnelGroup::update()
 		if (pTunnel)
 			pTunnel->update(current);
 	}
+}
+
+int KcpTunnelGroup::handleInputNotification(int fd)
+{
+	// recv data from internet
+	int maxlen = mKcpArg.mtu;
+	char *buf = (char *)malloc(maxlen);
+	assert(buf != NULL && "udp recv! malloc failed!");
+
+	sockaddr_in addr;
+	socklen_t addrlen = sizeof(addr);
+	int recvlen = recvfrom(fd, buf, maxlen, 0, (SA *)&addr, &addrlen);
+	if (recvlen > 0)
+	{
+		bool bAccepted = false;
+		Tunnels::iterator it = mTunnels.begin();
+		for (; it != mTunnels.end(); ++it)
+		{
+			KcpTunnel *pTunnel = it->second;
+			if (pTunnel && pTunnel->input(buf, recvlen))
+			{
+				pTunnel->setRemoteAddr((SA *)&addr, addrlen);
+				bAccepted = true;
+				break;
+			}
+		}
+
+		if (!bAccepted)
+		{
+			logErrorLn("KcpTunnel() got a stream that has no acceptor! datalen="<<recvlen);
+			// buf.hexlike();
+			// buf.textlike();
+		}
+	}
+	free(buf);   	
 }
 //--------------------------------------------------------------------------
 

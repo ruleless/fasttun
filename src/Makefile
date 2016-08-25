@@ -27,15 +27,16 @@ test.out:$(COMMON_OBJS) test.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
 client.o: client.cpp EventPoller.h Listener.h Connection.h KcpTunnel.h FastConnection.h
-server.o: server.cpp EventPoller.h Listener.h Connection.h KcpTunnel.h FastConnection.h
+server.o: server.cpp EventPoller.h Listener.h Connection.h KcpTunnel.h FastConnection.h Cache.h
+test.o: test.cpp EventPoller.h Listener.h Connection.h KcpTunnel.h FastConnection.h Cache.h
 
 EventPoller.o: EventPoller.cpp EventPoller.h SelectPoller.h EpollPoller.h
 SelectPoller.o: SelectPoller.cpp SelectPoller.h EventPoller.h
 EpollPoller.o: EpollPoller.cpp EpollPoller.h EventPoller.h
 Listener.o: Listener.cpp Listener.h EventPoller.h
 Connection.o: Connection.cpp Connection.h EventPoller.h
-KcpTunnel.o: KcpTunnel.cpp KcpTunnel.h
-FastConnection.o: FastConnection.cpp FastConnection.h EventPoller.h KcpTunnel.h Connection.h
+KcpTunnel.o: KcpTunnel.cpp KcpTunnel.h EventPoller.h Cache.h
+FastConnection.o: FastConnection.cpp FastConnection.h EventPoller.h KcpTunnel.h Connection.h Cache.h
 
 
 clean:
