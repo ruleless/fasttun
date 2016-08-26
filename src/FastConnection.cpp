@@ -28,6 +28,7 @@ static ConvGen<10000> s_convGen;
 
 FastConnection::~FastConnection()
 {
+	shutdown();
 	delete mCache;
 }
 
@@ -130,22 +131,12 @@ void FastConnection::flush(const void *data, size_t datalen)
 }
 
 void FastConnection::onConnected(Connection *pConn)
-{
-	char ip[MAX_BUF] = {0};
-	if (pConn->getPeerIp(ip, sizeof(ip)))
-	{
-		logTraceLn("conneted with "<<ip<<":"<<pConn->getPeerPort());
-	}
+{	
 }
 		
 void FastConnection::onDisconnected(Connection *pConn)
 {
-	char ip[MAX_BUF] = {0};
-	if (pConn->getPeerIp(ip, sizeof(ip)))
-	{
-		logTraceLn("disconneted with "<<ip<<":"<<pConn->getPeerPort());
-	}
-	
+	shutdown();
 	if (mpHandler)
 		mpHandler->onDisconnected(this);
 }
@@ -186,7 +177,8 @@ void FastConnection::onError(Connection *pConn)
 	{
 		logErrorLn("FastConnection::onError() peer ip:"<<ip<<":"<<pConn->getPeerPort()<<" reason:"<<coreStrError());
 	}
-	
+
+	shutdown();
 	if (mpHandler)
 		mpHandler->onError(this);
 }

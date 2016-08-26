@@ -4,6 +4,7 @@ NAMESPACE_BEG(tun)
 
 Connection::~Connection()
 {
+	shutdown();
 }
 
 bool Connection::acceptConnection(int connfd)
@@ -27,7 +28,7 @@ bool Connection::acceptConnection(int connfd)
 	{
 		logErrorLn("Connection::acceptConnection()  set nonblocking error! "<<coreStrError());
 		goto err_1;
-	}	
+	}
 	
 	if (!mEventPoller->registerForRead(mFd, this))
 	{
@@ -154,6 +155,7 @@ int Connection::handleInputNotification(int fd)
 {	
 	if (mConnStatus != ConnStatus_Connected)
 	{
+		logErrorLn("handleInputNotification() Connection is not connected! fd="<<fd);
 		return 0;
 	}
 	
@@ -191,9 +193,15 @@ int Connection::handleInputNotification(int fd)
 	if (mHandler)
 	{
 		if (ConnStatus_Error == mConnStatus)
+		{
+			shutdown();
 			mHandler->onError(this);
+		}
 		else if (ConnStatus_Closed == mConnStatus)
+		{
+			shutdown();
 			mHandler->onDisconnected(this);
+		}
 	}
 	free(buf);
 
@@ -215,7 +223,10 @@ int Connection::handleOutputNotification(int fd)
 			
 			mConnStatus = ConnStatus_Error;
 			if (mHandler)
+			{
+				shutdown();
 				mHandler->onError(this);
+			}
 			
 			return 0;
 		}

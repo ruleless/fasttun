@@ -57,7 +57,7 @@ class KcpTunnel
 
 	bool input(const void *data, size_t datalen);
 
-	void update(uint32 current);
+	uint32 update(uint32 current);
 
 	int _output(const void *data, size_t datalen);
 	
@@ -116,21 +116,20 @@ class KcpTunnelGroup : public InputNotificationHandler
 			,mbAssignedRemoteAddr(false)
 			,mKcpArg(kcpmode::Fast3)
 	{
-		memset(&mLocalAddr, 0, sizeof(mLocalAddr));
 		memset(&mRemoteAddr, 0, sizeof(mRemoteAddr));		
 	}
 	
     virtual ~KcpTunnelGroup();
 
-	bool create(const char *localaddr, const char *remoteaddr = NULL);
+	bool create(const char *localaddr = NULL, const char *remoteaddr = NULL);
 	void shutdown();
 
 	int _output(const void *data, size_t datalen);
 
 	KcpTunnel* createTunnel(uint32 conv);
 	void destroyTunnel(KcpTunnel *pTunnel);
-	
-	void update();
+
+	uint32 update();
 
 	// InputNotificationHandler
 	virtual int handleInputNotification(int fd);
@@ -145,7 +144,7 @@ class KcpTunnelGroup : public InputNotificationHandler
 		return mbAssignedRemoteAddr;
 	}
 
-	inline int getSockFd() const
+	inline int _getSockFd() const
 	{
 		return mFd;
 	}
@@ -159,7 +158,6 @@ class KcpTunnelGroup : public InputNotificationHandler
 	int mFd;
 	
 	bool mbAssignedRemoteAddr;
-	sockaddr_in mLocalAddr;
 	sockaddr_in mRemoteAddr;
 
 	KcpArg mKcpArg;	

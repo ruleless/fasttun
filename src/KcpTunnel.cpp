@@ -47,9 +47,9 @@ bool KcpTunnel::input(const void *data, size_t datalen)
 	return 0 == ret;
 }
 
-void KcpTunnel::update(uint32 current)
+uint32 KcpTunnel::update(uint32 current)
 {
-	ikcp_update(mKcpCb, current);
+	ikcp_update(mKcpCb, current);	
 
 	int datalen = ikcp_peeksize(mKcpCb);
 	if (datalen > 0)
@@ -62,6 +62,9 @@ void KcpTunnel::update(uint32 current)
 			mHandler->onRecv(this, buf, datalen);
 		free(buf);
 	}
+
+	uint32 nextCallTime = ikcp_check(mKcpCb, current);
+	return nextCallTime > current ? nextCallTime - current : 0;
 }
 
 int KcpTunnel::_output(const void *data, size_t datalen)
@@ -75,7 +78,7 @@ int KcpTunnel::_output(const void *data, size_t datalen)
 		if (assignedRemoteAddr())
 		{
 			_flushAll();
-			return sendto(mGroup->getSockFd(), data, datalen, 0, (SA *)&mRemoteAddr, sizeof(mRemoteAddr));
+			return sendto(mGroup->_getSockFd(), data, datalen, 0, (SA *)&mRemoteAddr, sizeof(mRemoteAddr));
 		}
 		else
 		{
@@ -95,7 +98,7 @@ void KcpTunnel::_flushAll()
 
 void KcpTunnel::flush(const void *data, size_t datalen)
 {
-	sendto(mGroup->getSockFd(), data, datalen, 0, (SA *)&mRemoteAddr, sizeof(mRemoteAddr));
+	sendto(mGroup->_getSockFd(), data, datalen, 0, (SA *)&mRemoteAddr, sizeof(mRemoteAddr));
 }
 
 static int kcpOutput(const char *buf, int len, ikcpcb *kcp, void *user)
@@ -115,14 +118,7 @@ KcpTunnelGroup::~KcpTunnelGroup()
 }
 
 bool KcpTunnelGroup::create(const char *localaddr, const char *remoteaddr)
-{
-	// assign the local address
-	if (!core::getSocketAddress(localaddr, mLocalAddr))
-	{
-		logErrorLn("KcpTunnelGroup::create() localaddr format error! "<<localaddr);
-		return false;
-	}
-
+{	
 	// assign the remote address
 	if (remoteaddr)
 	{
@@ -147,11 +143,22 @@ bool KcpTunnelGroup::create(const char *localaddr, const char *remoteaddr)
 	if (!core::setNonblocking(mFd))
 		return false;
 
-	// bind local address
-	if (bind(mFd, (SA *)&mLocalAddr, sizeof(mLocalAddr)) < 0)
+	if (localaddr)
 	{
-		logErrorLn("KcpTunnelGroup::create() bind local address err! "<<coreStrError());
-		return false;
+		// assign the local address
+		sockaddr_in addr;
+		if (!core::getSocketAddress(localaddr, addr))
+		{
+			logErrorLn("KcpTunnelGroup::create() localaddr format error! "<<localaddr);
+			return false;
+		}
+
+		// bind local address
+		if (bind(mFd, (SA *)&addr, sizeof(addr)) < 0)
+		{
+			logErrorLn("KcpTunnelGroup::create() bind local address err! "<<coreStrError());
+			return false;
+		}
 	}
 
 	// register for event
@@ -225,17 +232,21 @@ void KcpTunnelGroup::destroyTunnel(KcpTunnel *pTunnel)
 	delete pTunnel;
 }
 
-void KcpTunnelGroup::update()
-{   
+uint32 KcpTunnelGroup::update()
+{
 	// update all tunnels
 	uint32 current = core::getTickCount();
+	uint32 waitTime = 0xFFFFFFFF;
 	Tunnels::iterator it = mTunnels.begin();
 	for (; it != mTunnels.end(); ++it)
 	{
 		KcpTunnel *pTunnel = it->second;
 		if (pTunnel)
-			pTunnel->update(current);
+		{			
+			waitTime = min(waitTime, pTunnel->update(current));
+		}
 	}
+	return waitTime;
 }
 
 int KcpTunnelGroup::handleInputNotification(int fd)

@@ -65,14 +65,7 @@ class FastConnection : public Connection::Handler, public KcpTunnel::Handler
 	inline void setEventHandler(Handler *h)
 	{
 		mpHandler = h;
-	}
-
-	inline int getSockFd() const
-	{
-		if (mpConnection)
-			return mpConnection->getSockFd();
-		return -1;
-	}
+	}	
 
 	inline Connection* getConnection() const
 	{

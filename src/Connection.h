@@ -49,12 +49,7 @@ class Connection : public InputNotificationHandler, public OutputNotificationHan
 
 	void shutdown();	
 
-	int send(const void *data, size_t datalen);
-
-	inline int getSockFd() const
-	{
-		return mFd;
-	}
+	int send(const void *data, size_t datalen);	
 
 	inline void setEventHandler(Handler *h)
 	{

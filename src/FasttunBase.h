@@ -31,10 +31,12 @@ using core::MemoryStream;
 using core::getTimeStamp;
 using core::getTickCount;
 using core::coreStrError;
+using core::Ini;
 
 typedef struct sockaddr SA;
 
 #define GLOBAL_TUN_ID  100
+#define DEFAULT_CONF_PATH "/etc/fasttun/config.ini"
 
 NAMESPACE_BEG(tun)
 

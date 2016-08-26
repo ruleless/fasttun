@@ -78,14 +78,7 @@ class ClientBridge : public Connection::Handler
 			delete mpExtConn;
 			mpExtConn = NULL;
 		}
-	}
-
-	int getIntSockFd() const
-	{
-		if (mpIntConn)
-			return mpIntConn->getSockFd();
-		return -1;
-	}
+	}	
 
 	Connection* getIntConn() const
 	{
@@ -189,7 +182,7 @@ class Client : public Listener::Handler, public ClientBridge::Handler
 			:Listener::Handler()
 			,mEventPoller(poller)
 			,mListener(poller)
-			,mConns()
+			,mBridges()
 	{
 	}
 	
@@ -212,17 +205,17 @@ class Client : public Listener::Handler, public ClientBridge::Handler
 	void finalise()
 	{		
 		mListener.finalise();
-		ConnMap::iterator it = mConns.begin();
-		for (; it != mConns.end(); ++it)
+		BridgeList::iterator it = mBridges.begin();
+		for (; it != mBridges.end(); ++it)
 		{
-			ClientBridge *bridge = it->second;
+			ClientBridge *bridge = *it;
 			if (bridge)
 			{
 				bridge->shutdown();
 				delete bridge;
 			}
 		}
-		mConns.clear();
+		mBridges.clear();
 	}
 
 	virtual void onAccept(int connfd)
@@ -234,40 +227,26 @@ class Client : public Listener::Handler, public ClientBridge::Handler
 			return;
 		}
 
-		mConns.insert(std::pair<int, ClientBridge *>(connfd, bridge));
+		mBridges.insert(bridge);
 	}
 
 	virtual void onIntConnDisconnected(ClientBridge *pBridge)
-	{
-		char strSrc[1024] = {0};
-		if (getPeerAddrInfo(pBridge, strSrc, sizeof(strSrc)))
-		{
-			logWarningLn("from "<<strSrc<<"! connection disconnected. reason:"<<coreStrError()
-						 <<" we now have "<<mConns.size()-1<<" connections!");
-		}		
-		
+	{				
 		onBridgeShut(pBridge);
 	}
 	
 	virtual void onIntConnError(ClientBridge *pBridge)
-	{
-		char strSrc[1024] = {0};
-		if (getPeerAddrInfo(pBridge, strSrc, sizeof(strSrc)))
-		{
-			logWarningLn("from "<<strSrc<<"! got error on connection! reason:"<<coreStrError()
-						 <<" we now have "<<mConns.size()-1<<" connections!");
-		}
-
+	{		
 		onBridgeShut(pBridge);
 	}	   	
 	
   private:
 	void onBridgeShut(ClientBridge *pBridge)
 	{		
-		ConnMap::iterator it = mConns.find(pBridge->getIntSockFd());
-		if (it != mConns.end())
+		BridgeList::iterator it = mBridges.find(pBridge);
+		if (it != mBridges.end())
 		{			
-			mConns.erase(it);
+			mBridges.erase(it);
 		}
 
 		pBridge->shutdown();
@@ -285,12 +264,12 @@ class Client : public Listener::Handler, public ClientBridge::Handler
 		return NULL;
 	}	
   private:
-	typedef std::map<int, ClientBridge *> ConnMap;
+	typedef std::set<ClientBridge *> BridgeList;
 	
 	EventPoller *mEventPoller;
 	Listener mListener;
 
-	ConnMap mConns;
+	BridgeList mBridges;
 };
 //--------------------------------------------------------------------------
 

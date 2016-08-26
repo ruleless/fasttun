@@ -79,14 +79,7 @@ class ServerBridge : public Connection::Handler, public FastConnection::Handler
 			delete mpIntConn;
 			mpIntConn = NULL;
 		}
-	}
-
-	int getExtSockFd() const
-	{
-		if (mpExtConn)
-			return mpExtConn->getSockFd();
-		return -1;
-	}
+	}	
 
 	FastConnection* getExtConn() const
 	{
@@ -96,18 +89,15 @@ class ServerBridge : public Connection::Handler, public FastConnection::Handler
 	// Connection::Handler
 	virtual void onConnected(Connection *pConn)
 	{
-		logTraceLn("connected with ss!");
 		_flushAll();
 	}
 	virtual void onDisconnected(Connection *pConn)
 	{
-		logTraceLn("disconnected with ss!");
 		_reconnectInternal();
 	}
 
 	virtual void onRecv(Connection *pConn, const void *data, size_t datalen)
 	{
-		logTraceLn("serverint onRecv len="<<datalen);
 		mpExtConn->send(data, datalen);
 	}
 	
@@ -136,10 +126,8 @@ class ServerBridge : public Connection::Handler, public FastConnection::Handler
 
 	virtual void onRecv(FastConnection *pConn, const void *data, size_t datalen)
 	{
-		logTraceLn("severext onRecv len="<<datalen);		
 		if (!mpIntConn->isConnected())
 		{
-			logErrorLn("recv from client! but we have no connection with ss!");
 			_reconnectInternal();
 			mCache->cache(data, datalen);
 		}
@@ -157,7 +145,6 @@ class ServerBridge : public Connection::Handler, public FastConnection::Handler
 		{
 			mLastExtConnTime = curtick;			
 			mpIntConn->connect("127.0.0.1", 5082);
-			logTraceLn("reconnect ss!");
 		}		
 	}
 
@@ -196,7 +183,7 @@ class Server : public Listener::Handler, public ServerBridge::Handler
 			:Listener::Handler()
 			,mEventPoller(poller)
 			,mListener(poller)
-			,mConns()
+			,mBridges()
 	{
 	}
 	
@@ -219,17 +206,17 @@ class Server : public Listener::Handler, public ServerBridge::Handler
 	void finalise()
 	{		
 		mListener.finalise();
-		ConnMap::iterator it = mConns.begin();
-		for (; it != mConns.end(); ++it)
+		BridgeList::iterator it = mBridges.begin();
+		for (; it != mBridges.end(); ++it)
 		{
-			ServerBridge *bridge = it->second;
+			ServerBridge *bridge = *it;
 			if (bridge)
 			{
 				bridge->shutdown();
 				delete bridge;
 			}
 		}
-		mConns.clear();
+		mBridges.clear();
 	}
 
 	virtual void onAccept(int connfd)
@@ -241,64 +228,39 @@ class Server : public Listener::Handler, public ServerBridge::Handler
 			return;
 		}
 
-		mConns.insert(std::pair<int, ServerBridge *>(connfd, bridge));
+		mBridges.insert(bridge);
 	}
 
 	virtual void onExtConnDisconnected(ServerBridge *pBridge)
-	{
-		char strSrc[1024] = {0};
-		if (getPeerAddrInfo(pBridge, strSrc, sizeof(strSrc)))
-		{
-			logWarningLn("from "<<strSrc<<"! connection disconnected!"
-						 <<" we now have "<<mConns.size()-1<<" connections!");
-		}		
-		
+	{		
 		onBridgeShut(pBridge);
 	}
 	
 	virtual void onExtConnError(ServerBridge *pBridge)
-	{
-		char strSrc[1024] = {0};
-		if (getPeerAddrInfo(pBridge, strSrc, sizeof(strSrc)))
-		{
-			logWarningLn("from "<<strSrc<<"! got error on connection!"
-						 <<" we now have "<<mConns.size()-1<<" connections!");
-		}
-
+	{		
 		onBridgeShut(pBridge);
 	}	   	
 	
   private:
 	void onBridgeShut(ServerBridge *pBridge)
 	{		
-		ConnMap::iterator it = mConns.find(pBridge->getExtSockFd());
-		if (it != mConns.end())
+		BridgeList::iterator it = mBridges.find(pBridge);
+		if (it != mBridges.end())
 		{			
-			mConns.erase(it);
+			mBridges.erase(it);
 		}
 
 		pBridge->shutdown();
 		delete pBridge;
 	}
-
-	char* getPeerAddrInfo(ServerBridge *pBridge, char *info, int len)
-	{
-		char peerIp[MAX_BUF] = {0};
-		Connection *pExtConn = pBridge->getExtConn() ? pBridge->getExtConn()->getConnection() : NULL;
-		if (pExtConn && pExtConn->getPeerIp(peerIp, MAX_BUF))
-		{
-			snprintf(info, len, "%s:%d", peerIp, pExtConn->getPeerPort());
-			return info;
-		}
-		return NULL;
-	}	
+	
   private:
-	typedef std::map<int, ServerBridge *> ConnMap;
+	typedef std::set<ServerBridge *> BridgeList;
 	
 	EventPoller *mEventPoller;
 	Listener mListener;
 
-	ConnMap mConns;
+	BridgeList mBridges;
 };
 //--------------------------------------------------------------------------
 
@@ -331,10 +293,12 @@ int main(int argc, char *argv[])
 		exit(1);
 	}	
 
+	double maxWait = 0;
 	for (;;)
 	{
-		netPoller->processPendingEvents(0.016);
-		gTunnelManager->update();
+		netPoller->processPendingEvents(maxWait);
+		maxWait = gTunnelManager->update();
+		maxWait *= 0.001f;
 	}
 	
 	gTunnelManager->shutdown();
