@@ -15,13 +15,7 @@ bool Connection::acceptConnection(int connfd)
 		return false;
 	}
 
-	mFd = connfd;
-
-	socklen_t addrlen = sizeof(mPeerAddr);
-	if (getpeername(connfd, (SA *)&mPeerAddr, &addrlen) < 0)
-	{
-		goto err_1;
-	}
+	mFd = connfd;	
 
 	// set nonblocking		
 	if (!core::setNonblocking(mFd))
@@ -48,6 +42,20 @@ err_1:
 }
 
 bool Connection::connect(const char *ip, int port)
+{
+	struct sockaddr_in remoteAddr;
+	remoteAddr.sin_family = AF_INET;
+	remoteAddr.sin_port = htons(port);
+	if (inet_pton(AF_INET, ip, &remoteAddr.sin_addr) < 0)
+	{
+		logErrorLn("Connection::connect()  illegal ip("<<ip<<")");
+		return false;
+	}
+
+	return connect((const SA *)&remoteAddr, sizeof(remoteAddr));
+}
+
+bool Connection::connect(const SA *sa, socklen_t salen)
 {
 	if (mFd >= 0)
 		shutdown();
@@ -76,18 +84,9 @@ bool Connection::connect(const char *ip, int port)
 	{
 		logErrorLn("Connection::connect()  set nonblocking error! "<<coreStrError());
 		goto err_1;
-	}
+	}	
 
-	// assign the server address
-	mPeerAddr.sin_family = AF_INET;
-	mPeerAddr.sin_port = htons(port);
-	if (inet_pton(AF_INET, ip, &mPeerAddr.sin_addr) < 0)
-	{
-		logErrorLn("Connection::connect()  illegal ip("<<ip<<")");
-		goto err_1;
-	}
-
-	if (::connect(mFd, (SA *)&mPeerAddr, sizeof(mPeerAddr)) < 0)
+	if (::connect(mFd, sa, salen) < 0)
 	{
 		if (errno != EINPROGRESS)
 			goto err_1;
@@ -141,14 +140,20 @@ int Connection::send(const void *data, size_t datalen)
 	return ::send(mFd, data, datalen, 0);
 }
 
-const char* Connection::getPeerIp(char *ip, int iplen) const
+bool Connection::getpeername(SA *sa, socklen_t *salen) const
 {
-	return inet_ntop(AF_INET, &mPeerAddr.sin_addr, ip, iplen);
+	if (mFd < 0)
+		return false;
+
+	return ::getpeername(mFd, sa, salen) == 0;
 }
 
-int Connection::getPeerPort() const
+bool Connection::gethostname(SA *sa, socklen_t *salen) const
 {
-	return ntohs(mPeerAddr.sin_port);
+	if (mFd < 0)
+		return false;
+
+	return ::getsockname(mFd, sa, salen) == 0;
 }
 
 int Connection::handleInputNotification(int fd)

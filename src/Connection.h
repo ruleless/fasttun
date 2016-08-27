@@ -38,7 +38,6 @@ class Connection : public InputNotificationHandler, public OutputNotificationHan
 			,mbRegForRead(false)
 			,mbRegForWrite(false)
 	{
-		memset(&mPeerAddr, 0, sizeof(mPeerAddr));
 		assert(mEventPoller && "Connection::mEventPoller != NULL");
 	}
 	
@@ -46,6 +45,7 @@ class Connection : public InputNotificationHandler, public OutputNotificationHan
 
 	bool acceptConnection(int connfd);
 	bool connect(const char *ip, int port);
+	bool connect(const SA *sa, socklen_t salen);
 
 	void shutdown();	
 
@@ -61,8 +61,8 @@ class Connection : public InputNotificationHandler, public OutputNotificationHan
 		return mConnStatus == ConnStatus_Connected;
 	}
 
-	const char* getPeerIp(char *ip, int iplen) const;
-	int getPeerPort() const;	
+	bool getpeername(SA *sa, socklen_t *salen) const;
+	bool gethostname(SA *sa, socklen_t *salen) const;
 
 	// InputNotificationHandler
 	virtual int handleInputNotification(int fd);
@@ -73,7 +73,6 @@ class Connection : public InputNotificationHandler, public OutputNotificationHan
   private:
 	int mFd;
 	EConnStatus mConnStatus;
-	sockaddr_in mPeerAddr;
 	Handler *mHandler; 
 
 	EventPoller *mEventPoller;

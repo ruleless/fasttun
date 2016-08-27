@@ -9,7 +9,7 @@
 
 NAMESPACE_BEG(tun)
 
-class FastConnection : public Connection::Handler, public KcpTunnel::Handler
+class FastConnection : public Connection::Handler, public KcpTunnelHandler
 {
   public:
 	class Handler
@@ -25,7 +25,7 @@ class FastConnection : public Connection::Handler, public KcpTunnel::Handler
 		virtual void onRecv(FastConnection *pConn, const void *data, size_t datalen) {}
 	};
 	
-    FastConnection(EventPoller *poller, KcpTunnelGroup *pGroup)
+    FastConnection(EventPoller *poller, ITunnelGroup *pGroup)
 			:mEventPoller(poller)
 			,mpTunnelGroup(pGroup)
 			,mpConnection(NULL)
@@ -43,8 +43,9 @@ class FastConnection : public Connection::Handler, public KcpTunnel::Handler
 	
     virtual ~FastConnection();
 
-	bool acceptConnection(int connfd);
+	bool acceptConnection(int connfd);	
 	bool connect(const char *ip, int port);
+	bool connect(const SA *sa, socklen_t salen);
 
 	void shutdown();
 
@@ -60,7 +61,7 @@ class FastConnection : public Connection::Handler, public KcpTunnel::Handler
 	virtual void onError(Connection *pConn);
 
 	// KcpTunnel::Handler
-	virtual void onRecv(KcpTunnel *pTunnel, const void *data, size_t datalen);
+	virtual void onRecv(const void *data, size_t datalen);
 
 	inline void setEventHandler(Handler *h)
 	{
@@ -117,10 +118,10 @@ class FastConnection : public Connection::Handler, public KcpTunnel::Handler
 	typedef Cache<FastConnection> MyCache;
 	
 	EventPoller *mEventPoller;
-	KcpTunnelGroup *mpTunnelGroup;
+	ITunnelGroup *mpTunnelGroup;
 
 	Connection *mpConnection;
-	KcpTunnel *mpKcpTunnel;
+	ITunnel *mpKcpTunnel;
 	bool mbTunnelConnected;
 	
 	Handler *mpHandler;

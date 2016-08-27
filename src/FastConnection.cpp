@@ -73,10 +73,24 @@ bool FastConnection::acceptConnection(int connfd)
 
 bool FastConnection::connect(const char *ip, int port)
 {
+	struct sockaddr_in remoteAddr;
+	remoteAddr.sin_family = AF_INET;
+	remoteAddr.sin_port = htons(port);
+	if (inet_pton(AF_INET, ip, &remoteAddr.sin_addr) < 0)
+	{
+		logErrorLn("FastConnection::connect()  illegal ip("<<ip<<")");
+		return false;
+	}
+
+	return connect((const SA *)&remoteAddr, sizeof(remoteAddr));
+}
+
+bool FastConnection::connect(const SA *sa, socklen_t salen)
+{
 	shutdown();
 	
 	mpConnection = new Connection(mEventPoller);
-	if (!mpConnection->connect(ip, port))
+	if (!mpConnection->connect(sa, salen))
 	{
 		delete mpConnection;
 		mpConnection = NULL;
@@ -171,11 +185,17 @@ void FastConnection::onRecv(Connection *pConn, const void *data, size_t datalen)
 }
 
 void FastConnection::onError(Connection *pConn)
-{
-	char ip[MAX_BUF] = {0};
-	if (pConn->getPeerIp(ip, sizeof(ip)))
+{	
+	sockaddr_in sa;
+	socklen_t salen = sizeof(sa);
+	if (pConn->getpeername((SA *)&sa, &salen))
 	{
-		logErrorLn("FastConnection::onError() peer ip:"<<ip<<":"<<pConn->getPeerPort()<<" reason:"<<coreStrError());
+		char ip[MAX_BUF] = {0};
+		if (inet_ntop(AF_INET, &sa.sin_addr, ip, sizeof(ip)))
+		{
+			logErrorLn("FastConnection::onError() with "<<ip<<":"<<ntohs(sa.sin_port)<<
+					   " reason:"<<coreStrError());
+		}		
 	}
 
 	shutdown();
@@ -183,7 +203,7 @@ void FastConnection::onError(Connection *pConn)
 		mpHandler->onError(this);
 }
 
-void FastConnection::onRecv(KcpTunnel *pTunnel, const void *data, size_t datalen)
+void FastConnection::onRecv(const void *data, size_t datalen)
 {
 	if (mpHandler)
 		mpHandler->onRecv(this, data, datalen);

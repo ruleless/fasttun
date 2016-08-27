@@ -8,6 +8,20 @@ Listener::~Listener()
 }
 
 bool Listener::create(const char *ip, int port)
+{
+	struct sockaddr_in remoteAddr;
+	remoteAddr.sin_family = AF_INET;
+	remoteAddr.sin_port = htons(port);
+	if (inet_pton(AF_INET, ip, &remoteAddr.sin_addr) < 0)
+	{
+		logErrorLn("Listener::create()  illegal ip("<<ip<<")");
+		return false;
+	}
+
+	return create((const SA *)&remoteAddr, sizeof(remoteAddr));
+}
+
+bool Listener::create(const SA *sa, socklen_t salen)
 {	
 	if (mFd >= 0)
 	{
@@ -28,16 +42,8 @@ bool Listener::create(const char *ip, int port)
 		logErrorLn("Listener::create()  set nonblocking error! "<<coreStrError());
 		goto err_1;
 	}
-
-	struct sockaddr_in addr;
-	addr.sin_family = AF_INET;
-	addr.sin_port = htons(port);
-	if (inet_pton(AF_INET, ip, &addr.sin_addr) != 1)
-	{		
-		logErrorLn("Listener::create()  illegal ip("<<ip<<")");
-		goto err_1;
-	}
-	if (bind(mFd, (SA *)&addr, sizeof(addr)) < 0)
+	
+	if (bind(mFd, sa, salen) < 0)
 	{
 		logErrorLn("Listener::create()  bind error! "<<coreStrError());
 		goto err_1;

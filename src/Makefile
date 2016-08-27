@@ -1,5 +1,5 @@
-CC= clang
-CXX= clang++
+CC= gcc
+CXX= g++
 MAKE= make
 
 CILLDIR:= ../cill
@@ -15,7 +15,7 @@ RM= -rm -rf
 
 
 COMMON_OBJS:= EventPoller.o SelectPoller.o EpollPoller.o Connection.o Listener.o \
-	KcpTunnel.o FastConnection.o
+	FastConnection.o
 
 all:client.out server.out test.out
 
@@ -35,7 +35,6 @@ SelectPoller.o: SelectPoller.cpp SelectPoller.h EventPoller.h
 EpollPoller.o: EpollPoller.cpp EpollPoller.h EventPoller.h
 Listener.o: Listener.cpp Listener.h EventPoller.h
 Connection.o: Connection.cpp Connection.h EventPoller.h
-KcpTunnel.o: KcpTunnel.cpp KcpTunnel.h EventPoller.h Cache.h
 FastConnection.o: FastConnection.cpp FastConnection.h EventPoller.h KcpTunnel.h Connection.h Cache.h
 
 

@@ -252,17 +252,7 @@ class Client : public Listener::Handler, public ClientBridge::Handler
 		pBridge->shutdown();
 		delete pBridge;
 	}
-
-	char* getPeerAddrInfo(ClientBridge *pBridge, char *info, int len)
-	{
-		char peerIp[MAX_BUF] = {0};
-		if (pBridge->getIntConn() && pBridge->getIntConn()->getPeerIp(peerIp, MAX_BUF))
-		{
-			snprintf(info, len, "%s:%d", peerIp, pBridge->getIntConn()->getPeerPort());
-			return info;
-		}
-		return NULL;
-	}	
+	
   private:
 	typedef std::set<ClientBridge *> BridgeList;
 	

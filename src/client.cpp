@@ -6,7 +6,21 @@
 
 using namespace tun;
 
-static KcpTunnelGroup *gTunnelManager = NULL;
+typedef KcpTunnelGroup<false> MyTunnelGroup;
+static MyTunnelGroup *gTunnelManager = NULL;
+
+static sockaddr_in ListenAddr;
+static sockaddr_in RemoteAddr;
+
+int kcpOutput(const char *buf, int len, ikcpcb *kcp, void *user)
+{
+	ITunnel *pTunnel = (ITunnel *)user;
+	if (pTunnel)
+	{
+		assert(pTunnel->_output(buf, len) == len && "kcp outputed len illegal");
+	}
+	return 0;
+}
 
 //--------------------------------------------------------------------------
 class ClientBridge : public Connection::Handler, public FastConnection::Handler
@@ -47,7 +61,7 @@ class ClientBridge : public Connection::Handler, public FastConnection::Handler
 
 		mpExtConn = new FastConnection(mEventPoller, gTunnelManager);
 		mLastExtConnTime = getTickCount();
-		if (!mpExtConn->connect("127.0.0.1", 29900))
+		if (!mpExtConn->connect((const SA *)&RemoteAddr, sizeof(RemoteAddr)))
 		{
 			mpIntConn->shutdown();
 			delete mpIntConn;
@@ -122,7 +136,7 @@ class ClientBridge : public Connection::Handler, public FastConnection::Handler
 		if (curtick > mLastExtConnTime+1000)
 		{
 			mLastExtConnTime = curtick;
-			mpExtConn->connect("127.0.0.1", 29900);
+			mpExtConn->connect((const SA *)&RemoteAddr, sizeof(RemoteAddr));
 		}
 	}
 	
@@ -153,9 +167,9 @@ class Client : public Listener::Handler, public ClientBridge::Handler
 	{
 	}
 
-	bool create()
+	bool create(const SA *sa, socklen_t salen)
 	{
-		if (!mListener.create("127.0.0.1", 5081))
+		if (!mListener.create(sa, salen))
 		{
 			logErrorLn("create listener failed.");
 			return false;
@@ -242,6 +256,12 @@ void sigHandler(int signo)
 
 int main(int argc, char *argv[])
 {
+	// initialise tracer
+	core::createTrace();
+	core::output2Console();
+	core::output2Html("fasttun_client.html");
+
+	// parse parameter
 	const char *confPath = NULL;
 	const char *listenAddr = NULL;
 	const char *remoteAddr = NULL;
@@ -263,7 +283,8 @@ int main(int argc, char *argv[])
 		default:
 			break;
 		}
-	}
+	}	
+	
 	if (argc == 1)
 	{
 		confPath = DEFAULT_CONF_PATH;
@@ -272,7 +293,7 @@ int main(int argc, char *argv[])
 	{
 		Ini ini(confPath);
 		static std::string s_listenAddr = ini.getString("local", "listen", "");
-		static std::string s_remoteAddr = ini.getString("local", "remtoe", "");
+		static std::string s_remoteAddr = ini.getString("local", "remote", "");
 		if (s_listenAddr != "")
 			listenAddr = s_listenAddr.c_str();
 		if (s_remoteAddr != "")
@@ -281,34 +302,37 @@ int main(int argc, char *argv[])
 	
 	if (NULL == listenAddr || NULL == remoteAddr)
 	{
+		fprintf(stderr, "no argument assigned or parse argument failed!\n");
+		core::closeTrace();
 		exit(EXIT_FAILURE);
 	}
-
-	// initialise tracer
-	core::createTrace();
-	core::output2Console();
-	core::output2Html("fasttun_client.html");
+	if (!core::str2Ipv4(listenAddr, ListenAddr) || !core::str2Ipv4(remoteAddr, RemoteAddr))
+	{
+		logErrorLn("invalid socket address!");
+		core::closeTrace();
+		exit(EXIT_FAILURE);
+	}
 
 	// create event poller
 	EventPoller *netPoller = EventPoller::create();
 
-	// create client
+	// create client		
 	Client cli(netPoller);
-	if (!cli.create())
+	if (!cli.create((const SA *)&ListenAddr, sizeof(ListenAddr)))
 	{
 		logErrorLn("create client error!");
 		delete netPoller;
 		core::closeTrace();
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 
-	gTunnelManager = new KcpTunnelGroup(netPoller);
-	if (!gTunnelManager->create(NULL, "0.0.0.0:29901"))
+	gTunnelManager = new MyTunnelGroup(netPoller);
+	if (!gTunnelManager->create(remoteAddr))
 	{
 		logErrorLn("initialise Tunnel Manager error!");
 		delete netPoller;
 		core::closeTrace();
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 	
 	signal(SIGPIPE, sigHandler);
@@ -319,7 +343,7 @@ int main(int argc, char *argv[])
 		netPoller->processPendingEvents(maxWait);
 		maxWait = gTunnelManager->update();
 		maxWait *= 0.001f;
-	}	
+	}
 
 	gTunnelManager->shutdown();
 	delete gTunnelManager;

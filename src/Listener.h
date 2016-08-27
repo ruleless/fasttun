@@ -25,6 +25,7 @@ class Listener : InputNotificationHandler
     virtual ~Listener();
 
 	bool create(const char *ip, int port);
+	bool create(const SA *sa, socklen_t salen);
 	void finalise();
 
 	inline void setEventHandler(Handler *h)
