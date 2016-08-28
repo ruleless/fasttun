@@ -121,10 +121,12 @@ class ClientBridge : public Connection::Handler
 				_flushAll();
 				mpExtConn->send(data, datalen);
 			}
+			logInfoLn("internal recvlen="<<datalen);
 		}
 		else
 		{
 			mpIntConn->send(data, datalen);
+			logInfoLn("external recvlen="<<datalen);
 		}
 	}
 	

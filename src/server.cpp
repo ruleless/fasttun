@@ -105,6 +105,7 @@ class ServerBridge : public Connection::Handler, public FastConnection::Handler
 	virtual void onRecv(Connection *pConn, const void *data, size_t datalen)
 	{
 		mpExtConn->send(data, datalen);
+		logInfoLn("internal recvlen="<<datalen);
 	}
 	
 	virtual void onError(Connection *pConn)

@@ -12,16 +12,6 @@ static MyTunnelGroup *gTunnelManager = NULL;
 static sockaddr_in ListenAddr;
 static sockaddr_in RemoteAddr;
 
-int kcpOutput(const char *buf, int len, ikcpcb *kcp, void *user)
-{
-	ITunnel *pTunnel = (ITunnel *)user;
-	if (pTunnel)
-	{
-		assert(pTunnel->_output(buf, len) == len && "kcp outputed len illegal");
-	}
-	return 0;
-}
-
 //--------------------------------------------------------------------------
 class ClientBridge : public Connection::Handler, public FastConnection::Handler
 {
@@ -114,6 +104,7 @@ class ClientBridge : public Connection::Handler, public FastConnection::Handler
 		mpExtConn->send(data, datalen);
 		if (!mpExtConn->isConnected())
 			_reconnectExternal();
+		logInfoLn("internal recvlen="<<datalen);
 	}
 
 	// FastConnection::Handler
@@ -136,6 +127,7 @@ class ClientBridge : public Connection::Handler, public FastConnection::Handler
 	virtual void onRecv(FastConnection *pConn, const void *data, size_t datalen)
 	{
 		mpIntConn->send(data, datalen);
+		logInfoLn("external recvlen="<<datalen);
 	}
 
 	void _reconnectExternal()
