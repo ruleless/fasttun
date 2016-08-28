@@ -49,6 +49,25 @@ void KcpTunnel<IsServer>::shutdown()
 				  " sentcount="<<mSentCount<<" recvcount="<<mRecvCount<<
 				  " snd_nxt"<<mKcpCb->snd_nxt<<" rcv_nxt="<<mKcpCb->rcv_nxt<<
 				  " peeksize="<<ikcp_peeksize(mKcpCb));
+		
+		struct IQUEUEHEAD *p;
+		IKCPSEG *seg;
+		int length = 0;
+		ikcpcb *kcp = mKcpCb;
+
+		if (!iqueue_is_empty(&kcp->rcv_queue))
+		{
+			seg = iqueue_entry(kcp->rcv_queue.next, IKCPSEG, node);
+			if (seg->frg == 0)
+			{
+				logInfoLn("kcp conv="<<mConv<<" frg=0");
+			}
+			else if (kcp->nrcv_que < seg->frg + 1)
+			{
+				logInfoLn("kcp conv="<<mConv<<" nrcv_que="<<kcp->nrcv_que<<" frg="<<(seg->frg+1));
+			}
+		}	   		
+		
 		ikcp_release(mKcpCb);		
 		mKcpCb = NULL;
 	}
