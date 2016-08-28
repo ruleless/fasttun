@@ -47,7 +47,8 @@ void KcpTunnel<IsServer>::shutdown()
 	{
 		logInfoLn("close kcp! conv="<<mConv<<
 				  " sentcount="<<mSentCount<<" recvcount="<<mRecvCount<<
-				  " snd_nxt"<<mKcpCb->snd_nxt<<" rcv_nxt="<<mKcpCb->rcv_nxt);
+				  " snd_nxt"<<mKcpCb->snd_nxt<<" rcv_nxt="<<mKcpCb->rcv_nxt<<
+				  " peeksize="<<ikcp_peeksize(mKcpCb));
 		ikcp_release(mKcpCb);		
 		mKcpCb = NULL;
 	}
@@ -247,8 +248,8 @@ int KcpTunnelGroup<IsServer>::handleInputNotification(int fd)
 		{
 			logErrorLn("KcpTunnel() got a stream that has no acceptor! datalen="<<recvlen);
 		}
-	}
-	free(buf);
+	}	
+	free(buf);	
 	return 0;
 }
 //--------------------------------------------------------------------------
