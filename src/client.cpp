@@ -205,16 +205,19 @@ class Client : public Listener::Handler, public ClientBridge::Handler
 		}
 
 		mBridges.insert(bridge);
+		logInfoLn("a connection createted! cursize:"<<mBridges.size());
 	}
 
 	virtual void onIntConnDisconnected(ClientBridge *pBridge)
 	{		
 		onBridgeShut(pBridge);
+		logInfoLn("a connection closed! cursize:"<<mBridges.size());
 	}
 	
 	virtual void onIntConnError(ClientBridge *pBridge)
 	{
 		onBridgeShut(pBridge);
+		logInfoLn("a connection occur error! cursize:"<<mBridges.size()<<" reason:"<<coreStrError());
 	}
 	
   private:
@@ -227,7 +230,7 @@ class Client : public Listener::Handler, public ClientBridge::Handler
 		}
 
 		pBridge->shutdown();
-		delete pBridge;
+		delete pBridge;		
 	}	
 	
   private:

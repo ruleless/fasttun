@@ -233,17 +233,20 @@ class Server : public Listener::Handler, public ServerBridge::Handler
 		}
 
 		mBridges.insert(bridge);
+		logInfoLn("a fast connection createted! cursize:"<<mBridges.size());
 	}
 
 	virtual void onExtConnDisconnected(ServerBridge *pBridge)
 	{		
 		onBridgeShut(pBridge);
+		logInfoLn("a fast connection closed! cursize:"<<mBridges.size());
 	}
 	
 	virtual void onExtConnError(ServerBridge *pBridge)
 	{		
 		onBridgeShut(pBridge);
-	}	   	
+		logInfoLn("a fast connection occur error! cursize:"<<mBridges.size()<<" reason:"<<coreStrError());
+	}
 	
   private:
 	void onBridgeShut(ServerBridge *pBridge)

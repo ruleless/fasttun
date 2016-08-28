@@ -7,6 +7,9 @@
 
 using namespace tun;
 
+static sockaddr_in ListenAddr;
+static sockaddr_in RemoteAddr;
+
 //--------------------------------------------------------------------------
 class ClientBridge : public Connection::Handler
 {
@@ -50,7 +53,7 @@ class ClientBridge : public Connection::Handler
 
 		mpExtConn = new Connection(mEventPoller);
 		mLastExtConnTime = getTickCount();
-		if (!mpExtConn->connect("127.0.0.1", 5082))
+		if (!mpExtConn->connect((const SA *)&RemoteAddr, sizeof(RemoteAddr)))
 		{
 			mpIntConn->shutdown();
 			delete mpIntConn;
@@ -143,7 +146,7 @@ class ClientBridge : public Connection::Handler
 		if (curtick > mLastExtConnTime+1000)
 		{
 			mLastExtConnTime = curtick;
-			mpExtConn->connect("127.0.0.1", 5082);
+			mpExtConn->connect((const SA *)&RemoteAddr, sizeof(RemoteAddr));
 		}		
 	}
 
@@ -192,7 +195,7 @@ class Client : public Listener::Handler, public ClientBridge::Handler
 
 	bool create()
 	{
-		if (!mListener.create("127.0.0.1", 5081))
+		if (!mListener.create((const SA *)&ListenAddr, sizeof(ListenAddr)))
 		{
 			logErrorLn("create listener failed.");
 			return false;
@@ -268,7 +271,59 @@ int main(int argc, char *argv[])
 	// initialise tracer
 	core::createTrace();
 	core::output2Console();
-	core::output2Html("fasttun_client.html");
+	core::output2Html("fasttun_test.html");
+
+	// parse parameter
+	const char *confPath = NULL;
+	const char *listenAddr = NULL;
+	const char *remoteAddr = NULL;
+	
+	int opt = 0;
+	while ((opt = getopt(argc, argv, "c:l:r:")) != -1)
+	{
+		switch (opt)
+		{
+		case 'c':
+			confPath = optarg;
+			break;
+		case 'l':
+			listenAddr = optarg;
+			break;
+		case 'r':
+			remoteAddr = optarg;
+			break;
+		default:
+			break;
+		}
+	}	
+	
+	if (argc == 1)
+	{
+		confPath = DEFAULT_CONF_PATH;
+	}
+	if (confPath)
+	{
+		Ini ini(confPath);
+		static std::string s_listenAddr = ini.getString("test", "listen", "");
+		static std::string s_remoteAddr = ini.getString("test", "remote", "");
+		if (s_listenAddr != "")
+			listenAddr = s_listenAddr.c_str();
+		if (s_remoteAddr != "")
+			remoteAddr = s_remoteAddr.c_str();
+	}
+	
+	if (NULL == listenAddr || NULL == remoteAddr)
+	{
+		fprintf(stderr, "no argument assigned or parse argument failed!\n");
+		core::closeTrace();
+		exit(EXIT_FAILURE);
+	}
+	if (!core::str2Ipv4(listenAddr, ListenAddr) || !core::str2Ipv4(remoteAddr, RemoteAddr))
+	{
+		logErrorLn("invalid socket address!");
+		core::closeTrace();
+		exit(EXIT_FAILURE);
+	}
 
 	// create event poller
 	EventPoller *netPoller = EventPoller::create();
@@ -280,12 +335,12 @@ int main(int argc, char *argv[])
 		logErrorLn("create client error!");
 		delete netPoller;
 		core::closeTrace();
-		exit(1);
+		exit(EXIT_FAILURE);
 	}	
 
 	for (;;)
 	{
-		netPoller->processPendingEvents(0.016);
+		netPoller->processPendingEvents(-1);
 	}	
 
 	cli.finalise();	
