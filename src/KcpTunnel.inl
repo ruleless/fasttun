@@ -47,8 +47,8 @@ void KcpTunnel<IsServer>::shutdown()
 template <bool IsServer>
 int KcpTunnel<IsServer>::send(const void *data, size_t datalen)
 {
-	logInfoLn("kcp send, len="<<datalen)<<" ret="<<
-			ikcp_send(mKcpCb, (const char *)data, datalen);
+	logInfoLn("kcp send, len="<<datalen<<" ret="<<
+			  ikcp_send(mKcpCb, (const char *)data, datalen));
 	return 0;
 }
 
