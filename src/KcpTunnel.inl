@@ -42,9 +42,10 @@ void KcpTunnel<IsServer>::shutdown()
 {	
 	if (mKcpCb)
 	{
-		ikcp_release(mKcpCb);
 		logInfoLn("close kcp! conv="<<mConv<<
-				  " sentcount="<<mSentCount<<" recvcount="<<mRecvCount);
+				  " sentcount="<<mSentCount<<" recvcount="<<mRecvCount<<
+				  " snd_nxt"<<mKcpCb->snd_nxt<<" rcv_nxt="<<mKcpCb->rcv_nxt);
+		ikcp_release(mKcpCb);		
 		mKcpCb = NULL;
 	}
 	mSentCount = mRecvCount = 0;
