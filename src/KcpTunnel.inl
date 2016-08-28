@@ -5,9 +5,12 @@ static int kcpOutput(const char *buf, int len, ikcpcb *kcp, void *user)
 {
 	ITunnel *pTunnel = (ITunnel *)user;
 	if (pTunnel)
-	{		
-		logInfoLn("output conv="<<pTunnel->getConv()<<" len="<<len);
+	{
 		assert(pTunnel->_output(buf, len) == len && "kcp outputed len illegal");
+		
+		ikcpcb *kcp = pTunnel->_debugGetKcpCb();
+		logInfoLn("output conv="<<pTunnel->getConv()<<" len="<<len<<
+				  " snd_nxt"<<kcp->snd_nxt<<" rcv_nxt="<<kcp->rcv_nxt);		
 	}
 	return 0;
 }
@@ -231,7 +234,9 @@ int KcpTunnelGroup<IsServer>::handleInputNotification(int fd)
 			Tun *pTunnel = it->second;
 			if (pTunnel && pTunnel->input(buf, recvlen))
 			{
-				logInfoLn("input conv="<<pTunnel->getConv()<<" len="<<recvlen);
+				ikcpcb *kcp = pTunnel->_debugGetKcpCb();
+				logInfoLn("input conv="<<pTunnel->getConv()<<" len="<<recvlen<<
+						  " snd_nxt"<<kcp->snd_nxt<<" rcv_nxt="<<kcp->rcv_nxt);
 				pTunnel->onRecvPeerAddr((const SA *)&addr, addrlen);
 				bAccepted = true;
 				break;
