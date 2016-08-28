@@ -199,7 +199,7 @@ template <bool IsServer>
 int KcpTunnelGroup<IsServer>::handleInputNotification(int fd)
 {
 	// recv data from internet
-	int maxlen = mKcpArg.mtu;
+	int maxlen = 90000; // mKcpArg.mtu;
 	char *buf = (char *)malloc(maxlen);
 	assert(buf != NULL && "udp recv! malloc failed!");
 
