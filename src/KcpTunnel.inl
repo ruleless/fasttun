@@ -45,11 +45,14 @@ void KcpTunnel<IsServer>::shutdown()
 {	
 	if (mKcpCb)
 	{
+		int nsnd_que = mKcpCb->nsnd_que;
 		logInfoLn("close kcp! conv="<<mConv<<
 				  " sentcount="<<mSentCount<<" recvcount="<<mRecvCount<<
 				  " snd_nxt"<<mKcpCb->snd_nxt<<" rcv_nxt="<<mKcpCb->rcv_nxt<<
 				  " peeksize="<<ikcp_peeksize(mKcpCb)<<
 				  " nrcv_que="<<mKcpCb->nrcv_que<<" nsnd_que="<<mKcpCb->nsnd_que);
+
+		ikcp_update(mKcpCb, core::coreClock());
 		
 		struct IQUEUEHEAD *p;
 		IKCPSEG *seg;
