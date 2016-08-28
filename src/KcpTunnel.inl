@@ -31,26 +31,31 @@ bool KcpTunnel<IsServer>::create(uint32 conv, const KcpArg &arg)
 	mKcpCb->output = kcpOutput;
 	ikcp_nodelay(mKcpCb, arg.nodelay, arg.interval, arg.resend, arg.nc);
 	ikcp_setmtu(mKcpCb, arg.mtu);
+	mSentCount = mRecvCount = 0;
 	logInfoLn("create kcp! conv="<<conv);
 	return true;
 }
 
 template <bool IsServer>
 void KcpTunnel<IsServer>::shutdown()
-{
+{	
 	if (mKcpCb)
 	{
 		ikcp_release(mKcpCb);
-		logInfoLn("close kcp! conv="<<mConv);
+		logInfoLn("close kcp! conv="<<mConv<<
+				  " sentcount="<<mSentCount<<" recvcount="<<mRecvCount);
 		mKcpCb = NULL;
 	}
+	mSentCount = mRecvCount = 0;
 }
 
 template <bool IsServer>
 int KcpTunnel<IsServer>::send(const void *data, size_t datalen)
 {
+	++mSentCount;
 	logInfoLn("kcp send, kcp="<<mConv<<" len="<<datalen<<" ret="<<
-			  ikcp_send(mKcpCb, (const char *)data, datalen));
+			  ikcp_send(mKcpCb, (const char *)data, datalen)<<
+			  " sentcount="<<mSentCount);
 	return 0;
 }
 
@@ -73,7 +78,9 @@ uint32 KcpTunnel<IsServer>::update(uint32 current)
 		assert(buf != NULL && "ikcp_recv() malloc failed!");
 		assert(ikcp_recv(mKcpCb, buf, datalen) == datalen);
 
-		logInfoLn("kcp recv, conv="<<mConv<<" len="<<datalen);
+		++mRecvCount;
+		logInfoLn("kcp recv, conv="<<mConv<<" len="<<datalen<<
+				  " recvcount="<<mRecvCount);
 		if (mHandler)
 			mHandler->onRecv(buf, datalen);
 		free(buf);

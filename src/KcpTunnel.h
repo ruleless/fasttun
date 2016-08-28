@@ -238,6 +238,8 @@ class KcpTunnel : public Tunnel<IsServer>
 			,mKcpCb(NULL)
 			,mHandler(NULL)
 			,mConv(0)
+			,mSentCount(0)
+			,mRecvCount(0)
 	{
 	}
 	
@@ -262,7 +264,10 @@ class KcpTunnel : public Tunnel<IsServer>
   private:		
 	ikcpcb *mKcpCb;
 	KcpTunnelHandler *mHandler;
-	uint32 mConv;   	
+	uint32 mConv;
+
+	int mSentCount;
+	int mRecvCount;
 };
 //--------------------------------------------------------------------------
 
