@@ -50,7 +50,9 @@ void KcpTunnel<IsServer>::shutdown()
 				  " sentcount="<<mSentCount<<" recvcount="<<mRecvCount<<
 				  " snd_nxt"<<mKcpCb->snd_nxt<<" rcv_nxt="<<mKcpCb->rcv_nxt<<
 				  " peeksize="<<ikcp_peeksize(mKcpCb)<<
-				  " nrcv_que="<<mKcpCb->nrcv_que<<" nsnd_que="<<mKcpCb->nsnd_que);
+				  " nrcv_que="<<mKcpCb->nrcv_que<<" nsnd_que="<<mKcpCb->nsnd_que<<
+				  " snd_wnd="<<mKcpCb->snd_wnd<<" rmt_wnd"<<mKcpCb->rmt_wnd<<
+				  " snd_una="<<mKcpCb->snd_una<<" cwnd="<<mKcpCb->cwnd);
 
 		ikcp_update(mKcpCb, core::coreClock());
 		
