@@ -145,7 +145,9 @@ void FastConnection::flush(const void *data, size_t datalen)
 }
 
 void FastConnection::onConnected(Connection *pConn)
-{	
+{
+	if (mpHandler)
+		mpHandler->onConnected(this);
 }
 		
 void FastConnection::onDisconnected(Connection *pConn)

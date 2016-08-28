@@ -17,6 +17,7 @@ class FastConnection : public Connection::Handler, public KcpTunnelHandler
 	  public:
 		Handler() {}
 
+		virtual void onConnected(FastConnection *pConn) {}
 		virtual void onDisconnected(FastConnection *pConn) {}
 		virtual void onError(FastConnection *pConn) {}
 		

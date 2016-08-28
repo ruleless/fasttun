@@ -92,6 +92,11 @@ class ClientBridge : public Connection::Handler, public FastConnection::Handler
 	}	
 
 	// Connection::Handler
+	virtual void onConnected(FastConnection *pConn)
+	{
+		logInfoLn("a fast connection connected!");
+	}
+	
 	virtual void onDisconnected(Connection *pConn)
 	{
 		if (mpHandler)
@@ -115,14 +120,17 @@ class ClientBridge : public Connection::Handler, public FastConnection::Handler
 	virtual void onDisconnected(FastConnection *pConn)
 	{
 		_reconnectExternal();
+		logInfoLn("a fast connection closed!");
 	}
 	virtual void onError(FastConnection *pConn)
 	{
 		_reconnectExternal();
+		logInfoLn("a fast connection ocur an error! reason:"<<coreStrError());
 	}
 	virtual void onCreateKcpTunnelFailed(FastConnection *pConn)
 	{
 		_reconnectExternal();
+		logInfoLn("create fast connection faild!");
 	}	
 
 	virtual void onRecv(FastConnection *pConn, const void *data, size_t datalen)
@@ -133,11 +141,12 @@ class ClientBridge : public Connection::Handler, public FastConnection::Handler
 	void _reconnectExternal()
 	{
 		ulong curtick = getTickCount();
-		if (curtick > mLastExtConnTime+1000)
+		if (curtick > mLastExtConnTime+10000)
 		{
 			mLastExtConnTime = curtick;
 			mpExtConn->connect((const SA *)&RemoteAddr, sizeof(RemoteAddr));
-		}
+			logInfoLn("reconnect remote fast server!");
+		}		
 	}
 	
   private:

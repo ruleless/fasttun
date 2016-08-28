@@ -111,7 +111,6 @@ class ClientBridge : public Connection::Handler
 	{
 		if (pConn == mpIntConn)
 		{
-			logTraceLn("clientint onRecv len="<<datalen);
 			if (!mpExtConn->isConnected())
 			{
 				_reconnectExternal();
@@ -121,12 +120,10 @@ class ClientBridge : public Connection::Handler
 			{
 				_flushAll();
 				mpExtConn->send(data, datalen);
-				logTraceLn("mpExtConn->send len="<<datalen);
 			}
 		}
 		else
 		{
-			logTraceLn("clientext onRecv len="<<datalen);
 			mpIntConn->send(data, datalen);
 		}
 	}
@@ -231,16 +228,19 @@ class Client : public Listener::Handler, public ClientBridge::Handler
 		}
 
 		mBridges.insert(bridge);
+		logInfoLn("a connection createted! cursize:"<<mBridges.size());
 	}
 
 	virtual void onIntConnDisconnected(ClientBridge *pBridge)
 	{				
 		onBridgeShut(pBridge);
+		logInfoLn("a connection closed! cursize:"<<mBridges.size());
 	}
 	
 	virtual void onIntConnError(ClientBridge *pBridge)
 	{		
 		onBridgeShut(pBridge);
+		logInfoLn("a connection occur error! cursize:"<<mBridges.size()<<" reason:"<<coreStrError());
 	}	   	
 	
   private:
