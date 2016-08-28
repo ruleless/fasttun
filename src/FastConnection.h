@@ -74,6 +74,11 @@ class FastConnection : public Connection::Handler, public KcpTunnelHandler
 		return mpConnection;
 	}
 
+	inline ITunnel* getKcpTunnel() const
+	{
+		return mpKcpTunnel;
+	}
+
 	inline bool isConnected() const
 	{
 		if (mpConnection)

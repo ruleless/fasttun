@@ -127,7 +127,14 @@ class ClientBridge : public Connection::Handler, public FastConnection::Handler
 	virtual void onRecv(FastConnection *pConn, const void *data, size_t datalen)
 	{
 		mpIntConn->send(data, datalen);
-		logInfoLn("external recvlen="<<datalen);
+		if (pConn->getKcpTunnel())
+		{
+			logInfoLn("external recvlen="<<datalen<<" conv="<<pConn->getKcpTunnel()->getConv());
+		}
+		else
+		{
+			logInfoLn("external recvlen="<<datalen);
+		}
 	}
 
 	void _reconnectExternal()
