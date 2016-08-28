@@ -29,7 +29,6 @@ using core::uintptr;
 using core::MemoryStream;
 
 using core::getTimeStamp;
-using core::getTickCount;
 using core::coreStrError;
 using core::Ini;
 

@@ -50,7 +50,7 @@ class ClientBridge : public Connection::Handler, public FastConnection::Handler
 		mpIntConn->setEventHandler(this);
 
 		mpExtConn = new FastConnection(mEventPoller, gTunnelManager);
-		mLastExtConnTime = getTickCount();
+		mLastExtConnTime = core::coreClock();
 		if (!mpExtConn->connect((const SA *)&RemoteAddr, sizeof(RemoteAddr)))
 		{
 			mpIntConn->shutdown();
@@ -132,7 +132,7 @@ class ClientBridge : public Connection::Handler, public FastConnection::Handler
 
 	void _reconnectExternal()
 	{
-		ulong curtick = getTickCount();
+		ulong curtick = core::coreClock();
 		if (curtick > mLastExtConnTime+10000)
 		{
 			mLastExtConnTime = curtick;

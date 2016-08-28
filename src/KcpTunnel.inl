@@ -48,7 +48,8 @@ void KcpTunnel<IsServer>::shutdown()
 		logInfoLn("close kcp! conv="<<mConv<<
 				  " sentcount="<<mSentCount<<" recvcount="<<mRecvCount<<
 				  " snd_nxt"<<mKcpCb->snd_nxt<<" rcv_nxt="<<mKcpCb->rcv_nxt<<
-				  " peeksize="<<ikcp_peeksize(mKcpCb));
+				  " peeksize="<<ikcp_peeksize(mKcpCb)<<
+				  " nrcv_que="<<mKcpCb->nrcv_que<<" nsnd_que="<<mKcpCb->nsnd_que);
 		
 		struct IQUEUEHEAD *p;
 		IKCPSEG *seg;
@@ -218,7 +219,7 @@ template <bool IsServer>
 uint32 KcpTunnelGroup<IsServer>::update()
 {
 	// update all tunnels
-	uint32 current = core::getTickCount();
+	uint32 current = core::coreClock();
 	uint32 maxWait = 0xFFFFFFFF;
 	typename Tunnels::iterator it = this->mTunnels.begin();
 	for (; it != this->mTunnels.end(); ++it)
@@ -258,6 +259,7 @@ int KcpTunnelGroup<IsServer>::handleInputNotification(int fd)
 				logInfoLn("input conv="<<pTunnel->getConv()<<" len="<<recvlen<<
 						  " snd_nxt"<<kcp->snd_nxt<<" rcv_nxt="<<kcp->rcv_nxt);
 				pTunnel->onRecvPeerAddr((const SA *)&addr, addrlen);
+				pTunnel->update(core::coreClock());
 				bAccepted = true;
 				break;
 			}

@@ -53,7 +53,7 @@ class ServerBridge : public Connection::Handler, public FastConnection::Handler
 		}
 		mpExtConn->setEventHandler(this);
 
-		mLastExtConnTime = getTickCount();
+		mLastExtConnTime = core::coreClock();
 		mpIntConn = new Connection(mEventPoller);
 		if (!mpIntConn->connect((const SA *)&ConnectAddr, sizeof(ConnectAddr)))
 		{
@@ -148,7 +148,7 @@ class ServerBridge : public Connection::Handler, public FastConnection::Handler
 
 	void _reconnectInternal()
 	{
-		ulong curtick = getTickCount();
+		ulong curtick = core::coreClock();
 		if (curtick > mLastExtConnTime+1000)
 		{
 			mLastExtConnTime = curtick;			
