@@ -31,7 +31,7 @@ class ServerBridge : public Connection::Handler, public FastConnection::Handler
 			,mCache(NULL)
 			,mLastExtConnTime(0)
 	{
-		mCache = new MyCache(this);
+		mCache = new MyCache(this, &ServerBridge::flush);
 	}
 	
     virtual ~ServerBridge()

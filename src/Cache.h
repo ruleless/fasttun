@@ -7,10 +7,12 @@ NAMESPACE_BEG(tun)
 
 template <class T>
 class Cache
-{		
+{
+	typedef void (T::*FuncType)(const void *, size_t);
   public:
-    Cache(T *host)
+    Cache(T *host, FuncType func)
 			:mHost(host)
+			,mFunc(func)
 			,mCachedList()
 	{}
 	
@@ -46,7 +48,7 @@ class Cache
 		typename DataList::iterator it = this->mCachedList.begin();
 		for (; it != this->mCachedList.end(); ++it)
 		{
-			mHost->flush((*it).data, (*it).len);
+			(mHost->*mFunc)((*it).data, (*it).len);
 			free((*it).data);
 		}
 		this->mCachedList.clear();
@@ -62,6 +64,7 @@ class Cache
 	typedef std::list<Data> DataList;
 
 	T *mHost;
+	FuncType mFunc;
 	DataList mCachedList;	
 };
 

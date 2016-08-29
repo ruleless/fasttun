@@ -87,7 +87,7 @@ int KcpTunnel<IsServer>::send(const void *data, size_t datalen)
 	if (this->_canFlush())
 	{
 		_flushAll();
-		flush(data, datalen);
+		flushSndBuf(data, datalen);
 	}
 	else
 	{
@@ -112,7 +112,7 @@ bool KcpTunnel<IsServer>::_canFlush() const
 }
 
 template <bool IsServer>
-void KcpTunnel<IsServer>::flush(const void *data, size_t datalen)
+void KcpTunnel<IsServer>::flushSndBuf(const void *data, size_t datalen)
 {
 	const char *ptr = (const char *)data;
 	size_t maxLen = mKcpCb->mss<<8;

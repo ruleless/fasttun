@@ -213,7 +213,7 @@ class Tunnel<true> : public ITunnel
 			:mpGroup(pGroup)
 			,mAddrSettled(false)
 	{
-		this->mCache = new MyCache(this);
+		this->mCache = new MyCache(this, &Tunnel<true>::flush);
 	}
     virtual ~Tunnel()
 	{
@@ -243,7 +243,7 @@ class KcpTunnel : public Tunnel<IsServer>
 			,mSentCount(0)
 			,mRecvCount(0)
 	{
-		this->mSndCache = new SndCache(this);
+		this->mSndCache = new SndCache(this, &KcpTunnel<IsServer>::flushSndBuf);
 	}
 	
     virtual ~KcpTunnel();
@@ -270,7 +270,7 @@ class KcpTunnel : public Tunnel<IsServer>
 
 	void _flushAll();
 	bool _canFlush() const;
-	void flush(const void *data, size_t datalen);
+	void flushSndBuf(const void *data, size_t datalen);
 	
   private:		
 	ikcpcb *mKcpCb;
