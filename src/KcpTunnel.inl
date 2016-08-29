@@ -242,7 +242,7 @@ template <bool IsServer>
 int KcpTunnelGroup<IsServer>::handleInputNotification(int fd)
 {
 	// recv data from internet
-	int maxlen = 90000; // mKcpArg.mtu;
+	int maxlen = mKcpArg.mtu;
 	char *buf = (char *)malloc(maxlen);
 	assert(buf != NULL && "udp recv! malloc failed!");
 
@@ -253,26 +253,24 @@ int KcpTunnelGroup<IsServer>::handleInputNotification(int fd)
 	// input to kcp
 	if (recvlen > 0)
 	{
-		bool bAccepted = false;
-		typename Tunnels::iterator it = mTunnels.begin();
-		for (; it != mTunnels.end(); ++it)
+		uint32 conv = 0;
+		int ret = ikcp_get_conv(buf, recvlen, &conv);
+		typename Tunnels::iterator it = ret ? mTunnels.find(conv) : mTunnels.end();
+			
+		if (it != mTunnels.end())
 		{
 			Tun *pTunnel = it->second;
-			if (pTunnel && pTunnel->input(buf, recvlen))
+			if (pTunnel)
 			{
+				pTunnel->input(buf, recvlen);
+					
 				ikcpcb *kcp = pTunnel->_debugGetKcpCb();
-				logInfoLn("input conv="<<pTunnel->getConv()<<" len="<<recvlen<<
+				logInfoLn("input conv="<<conv<<" len="<<recvlen<<
 						  " snd_nxt"<<kcp->snd_nxt<<" rcv_nxt="<<kcp->rcv_nxt);
+					
 				pTunnel->onRecvPeerAddr((const SA *)&addr, addrlen);
 				pTunnel->update(core::coreClock());
-				bAccepted = true;
-				break;
 			}
-		}
-
-		if (!bAccepted)
-		{
-			logErrorLn("KcpTunnel() got a stream that has no acceptor! datalen="<<recvlen);
 		}
 	}	
 	free(buf);	
