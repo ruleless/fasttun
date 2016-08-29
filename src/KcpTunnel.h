@@ -233,6 +233,7 @@ template <bool IsServer>
 class KcpTunnel : public Tunnel<IsServer>
 {
 	typedef TunnelGroup<IsServer> MyTunnelGroup;
+	typedef Cache< KcpTunnel<IsServer> > SndCache;
   public:	
     KcpTunnel(MyTunnelGroup *pGroup)
 			:Tunnel<IsServer>(pGroup)
@@ -242,6 +243,7 @@ class KcpTunnel : public Tunnel<IsServer>
 			,mSentCount(0)
 			,mRecvCount(0)
 	{
+		this->mSndCache = new SndCache(this);
 	}
 	
     virtual ~KcpTunnel();
@@ -265,6 +267,10 @@ class KcpTunnel : public Tunnel<IsServer>
 
 	bool input(const void *data, size_t datalen);
 	uint32 update(uint32 current);
+
+	void _flushAll();
+	bool _canFlush() const;
+	void flush(const void *data, size_t datalen);
 	
   private:		
 	ikcpcb *mKcpCb;
@@ -273,6 +279,8 @@ class KcpTunnel : public Tunnel<IsServer>
 
 	int mSentCount;
 	int mRecvCount;
+
+	SndCache *mSndCache;
 };
 //--------------------------------------------------------------------------
 
