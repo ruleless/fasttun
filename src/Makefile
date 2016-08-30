@@ -16,7 +16,7 @@ RM= -rm -rf
 
 
 COMMON_OBJS:= EventPoller.o SelectPoller.o EpollPoller.o Connection.o Listener.o \
-	FastConnection.o
+	FastConnection.o FasttunBase.o
 
 all:client.out server.out test.out
 
@@ -31,12 +31,13 @@ client.o: client.cpp EventPoller.h Listener.h Connection.h KcpTunnel.h KcpTunnel
 server.o: server.cpp EventPoller.h Listener.h Connection.h KcpTunnel.h KcpTunnel.inl FastConnection.h Cache.h
 test.o: test.cpp EventPoller.h Listener.h Connection.h KcpTunnel.h KcpTunnel.inl FastConnection.h Cache.h
 
-EventPoller.o: EventPoller.cpp EventPoller.h SelectPoller.h EpollPoller.h
-SelectPoller.o: SelectPoller.cpp SelectPoller.h EventPoller.h
-EpollPoller.o: EpollPoller.cpp EpollPoller.h EventPoller.h
-Listener.o: Listener.cpp Listener.h EventPoller.h
-Connection.o: Connection.cpp Connection.h EventPoller.h
-FastConnection.o: FastConnection.cpp FastConnection.h EventPoller.h KcpTunnel.h KcpTunnel.inl Connection.h Cache.h
+FasttunBase.o: FasttunBase.cpp FasttunBase.h
+EventPoller.o: EventPoller.cpp EventPoller.h SelectPoller.h EpollPoller.h FasttunBase.h
+SelectPoller.o: SelectPoller.cpp SelectPoller.h EventPoller.h FasttunBase.h
+EpollPoller.o: EpollPoller.cpp EpollPoller.h EventPoller.h FasttunBase.h
+Listener.o: Listener.cpp Listener.h EventPoller.h FasttunBase.h
+Connection.o: Connection.cpp Connection.h EventPoller.h FasttunBase.h
+FastConnection.o: FastConnection.cpp FastConnection.h EventPoller.h KcpTunnel.h KcpTunnel.inl Connection.h Cache.h FasttunBase.h
 
 
 install-cli:

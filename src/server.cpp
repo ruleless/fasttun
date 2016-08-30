@@ -276,19 +276,16 @@ class Server : public Listener::Handler, public ServerBridge::Handler
 //--------------------------------------------------------------------------
 
 int main(int argc, char *argv[])
-{
-	// initialise tracer
-	core::createTrace();
-	core::output2Console();
-	core::output2Html("fasttun_server.html");
-
+{	
 	// parse parameter
+	int pidFlags = 0;
 	const char *confPath = NULL;
 	const char *listenAddr = NULL;
 	const char *connectAddr = NULL;
+	const char *pidPath = NULL;
 	
 	int opt = 0;
-	while ((opt = getopt(argc, argv, "c:l:r:")) != -1)
+	while ((opt = getopt(argc, argv, "f:c:l:r:")) != -1)
 	{
 		switch (opt)
 		{
@@ -301,10 +298,29 @@ int main(int argc, char *argv[])
 		case 'r':
 			connectAddr = optarg;
 			break;
+		case 'f':
+			pidFlags = 1;
+			pidPath = optarg;
+			break;
 		default:
 			break;
 		}
-	}	
+	}
+
+	// daemoniize
+	if (pidFlags)
+	{
+		daemonize(pidPath);
+		
+		core::createTrace();
+		core::output2Html("/var/log/tun-svr.html");
+	}
+	else
+	{
+		core::createTrace();
+		core::output2Console();
+		core::output2Html("tun-svr.html");
+	}
 	
 	if (argc == 1)
 	{

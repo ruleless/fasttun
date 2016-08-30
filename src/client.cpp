@@ -266,19 +266,16 @@ void sigHandler(int signo)
 }
 
 int main(int argc, char *argv[])
-{
-	// initialise tracer
-	core::createTrace();
-	core::output2Console();
-	core::output2Html("fasttun_client.html");
-
+{	
 	// parse parameter
+	int pidFlags = 0;
 	const char *confPath = NULL;
 	const char *listenAddr = NULL;
 	const char *remoteAddr = NULL;
+	const char *pidPath = NULL;
 	
 	int opt = 0;
-	while ((opt = getopt(argc, argv, "c:l:r:")) != -1)
+	while ((opt = getopt(argc, argv, "f:c:l:r:")) != -1)
 	{
 		switch (opt)
 		{
@@ -291,10 +288,29 @@ int main(int argc, char *argv[])
 		case 'r':
 			remoteAddr = optarg;
 			break;
+		case 'f':
+			pidFlags = 1;
+			pidPath = optarg;
+			break;
 		default:
 			break;
 		}
 	}	
+
+	// daemoniize
+	if (pidFlags)
+	{
+		daemonize(pidPath);
+		
+		core::createTrace();
+		core::output2Html("/var/log/tun-cli.html");
+	}
+	else
+	{
+		core::createTrace();
+		core::output2Console();
+		core::output2Html("tun-cli.html");
+	}
 	
 	if (argc == 1)
 	{

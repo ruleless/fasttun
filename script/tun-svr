@@ -1,4 +1,11 @@
 #!/bin/bash
+#====================================================================
+# Run level information:
+# chkconfig: 345 99 99
+# Description: fast tunnel server
+# processname: tun-svr
+#====================================================================
+
 
 #====================================================================
 # Configuration
@@ -10,8 +17,8 @@
 [ ${NETWORKING} ="yes" ] || exit 0
 
 # Daemon
-NAME=tun-cli
-DAEMON=/usr/local/bin/tun-cli
+NAME=tun-svr
+DAEMON=/usr/local/bin/tun-svr
 CONF=/etc/fast-tun.ini
 
 #USER="nobody"
@@ -32,6 +39,8 @@ LOCK_FILE=/var/lock/subsys/$NAME
 
 # Path to the pid file.
 PID=/var/run/$NAME/pid
+#====================================================================
+
 
 #====================================================================
 # Run controls:
@@ -97,3 +106,4 @@ case "$1" in
 esac
 
 exit $RETVAL
+#====================================================================

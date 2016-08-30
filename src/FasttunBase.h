@@ -70,6 +70,8 @@ class IDGenerator
 	IDList mAvailableIds;
 };
 
+void daemonize(const char *path);
+
 NAMESPACE_END // namespace tun
 
 #endif // __FASTTUNBASE_H__
