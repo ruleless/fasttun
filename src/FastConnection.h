@@ -39,7 +39,7 @@ class FastConnection : public Connection::Handler, public KcpTunnelHandler
 	{
 		memset(&mMsgLenRcvBuf, 0, sizeof(mMsgLenRcvBuf));
 		memset(&mCurMsg, 0, sizeof(mCurMsg));
-		mCache = new MyCache(this);
+		mCache = new MyCache(this, &FastConnection::flush);
 	}
 	
     virtual ~FastConnection();

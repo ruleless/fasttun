@@ -19,6 +19,7 @@ template <bool IsServer>
 KcpTunnel<IsServer>::~KcpTunnel()
 {
 	shutdown();
+	delete mSndCache;
 }
 
 template <bool IsServer>
@@ -83,11 +84,54 @@ void KcpTunnel<IsServer>::shutdown()
 template <bool IsServer>
 int KcpTunnel<IsServer>::send(const void *data, size_t datalen)
 {
-	++mSentCount;
-	logInfoLn("kcp send, kcp="<<mConv<<" len="<<datalen<<" ret="<<
-			  ikcp_send(mKcpCb, (const char *)data, datalen)<<
-			  " sentcount="<<mSentCount);
+	if (this->_canFlush())
+	{
+		_flushAll();
+		flushSndBuf(data, datalen);
+	}
+	else
+	{
+		mSndCache->cache(data, datalen);
+	}	
 	return 0;
+}
+
+template <bool IsServer>
+void KcpTunnel<IsServer>::_flushAll()
+{
+	if (this->_canFlush())
+	{
+		mSndCache->flushAll();
+	}
+}
+
+template <bool IsServer>
+bool KcpTunnel<IsServer>::_canFlush() const
+{
+	return ikcp_waitsnd(mKcpCb) < 2*mKcpCb->snd_wnd;
+}
+
+template <bool IsServer>
+void KcpTunnel<IsServer>::flushSndBuf(const void *data, size_t datalen)
+{
+	const char *ptr = (const char *)data;
+	size_t maxLen = mKcpCb->mss<<2;
+	for (;;)
+	{
+		if (datalen <= maxLen) // in most case
+		{
+			ikcp_send(mKcpCb, (const char *)ptr, datalen);
+			++mSentCount;
+			break;
+		}
+		else
+		{
+			ikcp_send(mKcpCb, (const char *)ptr, maxLen);
+			++mSentCount;
+			ptr += maxLen;
+			datalen -= maxLen;
+		}
+	}
 }
 
 template <bool IsServer>
@@ -100,7 +144,8 @@ bool KcpTunnel<IsServer>::input(const void *data, size_t datalen)
 template <bool IsServer>
 uint32 KcpTunnel<IsServer>::update(uint32 current)
 {
-	ikcp_update(mKcpCb, current);	
+	ikcp_update(mKcpCb, current);
+	_flushAll();
 
 	int datalen = ikcp_peeksize(mKcpCb);
 	if (datalen > 0)

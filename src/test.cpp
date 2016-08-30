@@ -28,7 +28,7 @@ class ClientBridge : public Connection::Handler
 			,mCache(NULL)
 			,mLastExtConnTime(0)
 	{
-		mCache = new MyCache(this);
+		mCache = new MyCache(this, &ClientBridge::flush);
 	}
 	
     virtual ~ClientBridge()
@@ -156,7 +156,7 @@ class ClientBridge : public Connection::Handler
 			mCache->flushAll();
 		}
 	}
-	void flush(const char *data, size_t datalen)
+	void flush(const void *data, size_t datalen)
 	{
 		mpExtConn->send(data, datalen);
 	}
