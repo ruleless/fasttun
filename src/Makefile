@@ -2,6 +2,7 @@ CC= gcc
 CXX= g++
 MAKE= make
 
+BINDIR:= /usr/local/bin
 CILLDIR:= ../cill
 ROOT:= ..
 
@@ -36,6 +37,22 @@ EpollPoller.o: EpollPoller.cpp EpollPoller.h EventPoller.h
 Listener.o: Listener.cpp Listener.h EventPoller.h
 Connection.o: Connection.cpp Connection.h EventPoller.h
 FastConnection.o: FastConnection.cpp FastConnection.h EventPoller.h KcpTunnel.h KcpTunnel.inl Connection.h Cache.h
+
+
+install-cli:
+	cp client.out $(BINDIR)/tun-cli
+	cp ../script/tun-cli /etc/init.d/
+
+install-svr:
+	cp server.out $(BINDIR)/tun-svr
+	cp ../script/tun-svr /etc/init.d/
+
+uninstall:
+	-$(RM) $(BINDIR)/tun-cli $(BINDIR)/tun-svr /etc/init.d/tun-cli /etc/init.d/tun-svr
+	-service tun-cli stop
+	-service -tun-svr stop
+	-chkconfig --del tun-cli
+	-chkconfig --del tun-svr
 
 
 clean:
