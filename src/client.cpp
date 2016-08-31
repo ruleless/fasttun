@@ -303,13 +303,13 @@ int main(int argc, char *argv[])
 		daemonize(pidPath);
 		
 		core::createTrace();
-		core::output2Html("/var/log/tun-cli.html");
+		core::output2File("/var/log/tun-cli.log");
 	}
 	else
 	{
 		core::createTrace();
 		core::output2Console();
-		core::output2Html("tun-cli.html");
+		core::output2File("tun-cli.log");
 	}
 	
 	if (argc == 1)

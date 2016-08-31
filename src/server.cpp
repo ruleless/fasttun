@@ -313,13 +313,13 @@ int main(int argc, char *argv[])
 		daemonize(pidPath);
 		
 		core::createTrace();
-		core::output2Html("/var/log/tun-svr.html");
+		core::output2File("/var/log/tun-svr.log");
 	}
 	else
 	{
 		core::createTrace();
 		core::output2Console();
-		core::output2Html("tun-svr.html");
+		core::output2File("tun-svr.log");
 	}
 	
 	if (argc == 1)
