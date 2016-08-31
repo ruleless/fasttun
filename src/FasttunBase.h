@@ -35,6 +35,7 @@ using core::Ini;
 typedef struct sockaddr SA;
 
 #define GLOBAL_TUN_ID  100
+#define LISTENQ 32
 #define DEFAULT_CONF_PATH "/etc/fasttun/config.ini"
 
 NAMESPACE_BEG(tun)

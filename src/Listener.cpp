@@ -49,7 +49,7 @@ bool Listener::create(const SA *sa, socklen_t salen)
 		goto err_1;
 	}
 
-	if (listen(mFd, 5) < 0)
+	if (listen(mFd, LISTENQ) < 0)
 	{
 		logErrorLn("Listener::create()  listen failed! "<<coreStrError());
 		goto err_1;
