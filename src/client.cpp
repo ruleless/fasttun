@@ -84,7 +84,6 @@ class ClientBridge : public Connection::Handler, public FastConnection::Handler
 	// Connection::Handler
 	virtual void onConnected(FastConnection *pConn)
 	{
-		logInfoLn("a fast connection connected!");
 	}
 	
 	virtual void onDisconnected(Connection *pConn)
@@ -104,37 +103,27 @@ class ClientBridge : public Connection::Handler, public FastConnection::Handler
 		mpExtConn->send(data, datalen);
 		if (!mpExtConn->isConnected())
 			_reconnectExternal();
-		logInfoLn("internal recvlen="<<datalen);
 	}
 
 	// FastConnection::Handler
 	virtual void onDisconnected(FastConnection *pConn)
 	{
 		_reconnectExternal();
-		logInfoLn("a fast connection closed!");
 	}
 	virtual void onError(FastConnection *pConn)
 	{
 		_reconnectExternal();
-		logInfoLn("a fast connection ocur an error! reason:"<<coreStrError());
+		logWarningLn("a fast connection ocur an error! reason:"<<coreStrError());
 	}
 	virtual void onCreateKcpTunnelFailed(FastConnection *pConn)
 	{
 		_reconnectExternal();
-		logInfoLn("create fast connection faild!");
-	}	
+		logWarningLn("create fast connection faild!");
+	}
 
 	virtual void onRecv(FastConnection *pConn, const void *data, size_t datalen)
 	{
 		mpIntConn->send(data, datalen);
-		if (pConn->getKcpTunnel())
-		{
-			logInfoLn("external recvlen="<<datalen<<" conv="<<pConn->getKcpTunnel()->getConv());
-		}
-		else
-		{
-			logInfoLn("external recvlen="<<datalen);
-		}
 	}
 
 	void _reconnectExternal()
@@ -144,7 +133,6 @@ class ClientBridge : public Connection::Handler, public FastConnection::Handler
 		{
 			mLastExtConnTime = curtick;
 			mpExtConn->connect((const SA *)&RemoteAddr, sizeof(RemoteAddr));
-			logInfoLn("reconnect remote fast server!");
 		}		
 	}
 	
@@ -269,13 +257,14 @@ int main(int argc, char *argv[])
 {	
 	// parse parameter
 	int pidFlags = 0;
+	bool bVerbose = false;
 	const char *confPath = NULL;
 	const char *listenAddr = NULL;
 	const char *remoteAddr = NULL;
 	const char *pidPath = NULL;
 	
 	int opt = 0;
-	while ((opt = getopt(argc, argv, "f:c:l:r:")) != -1)
+	while ((opt = getopt(argc, argv, "f:c:l:r:v")) != -1)
 	{
 		switch (opt)
 		{
@@ -292,25 +281,32 @@ int main(int argc, char *argv[])
 			pidFlags = 1;
 			pidPath = optarg;
 			break;
+		case 'v':
+			bVerbose = true;
+			break;
 		default:
 			break;
 		}
 	}	
 
 	// daemoniize
+	int traceLevel = core::levelTrace|core::levelWarning|
+					 core::levelError|core::levelEmphasis;
+	if (bVerbose)
+		traceLevel |= core::levelInfo;
 	if (pidFlags)
 	{
 		daemonize(pidPath);
 		
-		core::createTrace();
+		core::createTrace(traceLevel);
 		core::output2File("/var/log/tun-cli.log");
 	}
 	else
 	{
-		core::createTrace();
+		core::createTrace(traceLevel);
 		core::output2Console();
 		core::output2File("tun-cli.log");
-	}
+	}	
 	
 	if (argc == 1)
 	{

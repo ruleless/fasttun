@@ -6,11 +6,7 @@ static int kcpOutput(const char *buf, int len, ikcpcb *kcp, void *user)
 	ITunnel *pTunnel = (ITunnel *)user;
 	if (pTunnel)
 	{
-		assert(pTunnel->_output(buf, len) == len && "kcp outputed len illegal");
-		
-		ikcpcb *kcp = pTunnel->_debugGetKcpCb();
-		logInfoLn("output conv="<<pTunnel->getConv()<<" len="<<len<<
-				  " snd_nxt"<<kcp->snd_nxt<<" rcv_nxt="<<kcp->rcv_nxt);		
+		assert(pTunnel->_output(buf, len) == len && "kcp outputed len illegal");	   		
 	}
 	return 0;
 }
@@ -54,26 +50,6 @@ void KcpTunnel<IsServer>::shutdown()
 				  " nrcv_que="<<mKcpCb->nrcv_que<<" nsnd_que="<<mKcpCb->nsnd_que<<
 				  " snd_wnd="<<mKcpCb->snd_wnd<<" rmt_wnd"<<mKcpCb->rmt_wnd<<
 				  " snd_una="<<mKcpCb->snd_una<<" cwnd="<<mKcpCb->cwnd);
-
-		ikcp_update(mKcpCb, core::coreClock());
-		
-		struct IQUEUEHEAD *p;
-		IKCPSEG *seg;
-		int length = 0;
-		ikcpcb *kcp = mKcpCb;
-
-		if (!iqueue_is_empty(&kcp->rcv_queue))
-		{
-			seg = iqueue_entry(kcp->rcv_queue.next, IKCPSEG, node);
-			if (seg->frg == 0)
-			{
-				logInfoLn("kcp conv="<<mConv<<" frg=0");
-			}
-			else if (kcp->nrcv_que < seg->frg + 1)
-			{
-				logInfoLn("kcp conv="<<mConv<<" nrcv_que="<<kcp->nrcv_que<<" frg="<<(seg->frg+1));
-			}
-		}	   		
 		
 		ikcp_release(mKcpCb);		
 		mKcpCb = NULL;
@@ -155,8 +131,6 @@ uint32 KcpTunnel<IsServer>::update(uint32 current)
 		assert(ikcp_recv(mKcpCb, buf, datalen) == datalen);
 
 		++mRecvCount;
-		logInfoLn("kcp recv, conv="<<mConv<<" len="<<datalen<<
-				  " recvcount="<<mRecvCount);
 		if (mHandler)
 			mHandler->onRecv(buf, datalen);
 		free(buf);
@@ -307,12 +281,7 @@ int KcpTunnelGroup<IsServer>::handleInputNotification(int fd)
 			Tun *pTunnel = it->second;
 			if (pTunnel)
 			{
-				pTunnel->input(buf, recvlen);
-					
-				ikcpcb *kcp = pTunnel->_debugGetKcpCb();
-				logInfoLn("input conv="<<conv<<" len="<<recvlen<<
-						  " snd_nxt"<<kcp->snd_nxt<<" rcv_nxt="<<kcp->rcv_nxt);
-					
+				pTunnel->input(buf, recvlen);					
 				pTunnel->onRecvPeerAddr((const SA *)&addr, addrlen);
 				pTunnel->update(core::coreClock());
 			}

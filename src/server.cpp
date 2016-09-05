@@ -105,7 +105,6 @@ class ServerBridge : public Connection::Handler, public FastConnection::Handler
 	virtual void onRecv(Connection *pConn, const void *data, size_t datalen)
 	{
 		mpExtConn->send(data, datalen);
-		logInfoLn("internal recvlen="<<datalen);
 	}
 	
 	virtual void onError(Connection *pConn)
@@ -279,13 +278,14 @@ int main(int argc, char *argv[])
 {	
 	// parse parameter
 	int pidFlags = 0;
+	bool bVerbose = false;
 	const char *confPath = NULL;
 	const char *listenAddr = NULL;
 	const char *connectAddr = NULL;
 	const char *pidPath = NULL;
 	
 	int opt = 0;
-	while ((opt = getopt(argc, argv, "f:c:l:r:")) != -1)
+	while ((opt = getopt(argc, argv, "f:c:l:r:v")) != -1)
 	{
 		switch (opt)
 		{
@@ -302,22 +302,29 @@ int main(int argc, char *argv[])
 			pidFlags = 1;
 			pidPath = optarg;
 			break;
+		case 'v':
+			bVerbose = true;
+			break;
 		default:
 			break;
 		}
 	}
 
 	// daemoniize
+	int traceLevel = core::levelTrace|core::levelWarning|
+					 core::levelError|core::levelEmphasis;
+	if (bVerbose)
+		traceLevel |= core::levelInfo;
 	if (pidFlags)
 	{
 		daemonize(pidPath);
 		
-		core::createTrace();
+		core::createTrace(traceLevel);
 		core::output2File("/var/log/tun-svr.log");
 	}
 	else
 	{
-		core::createTrace();
+		core::createTrace(traceLevel);
 		core::output2Console();
 		core::output2File("tun-svr.log");
 	}

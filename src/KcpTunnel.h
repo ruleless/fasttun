@@ -148,7 +148,6 @@ struct ITunnel
 	virtual uint32 getConv() const = 0;
 
 	virtual void setEventHandler(KcpTunnelHandler *h) = 0;
-	virtual ikcpcb* _debugGetKcpCb() const = 0;
 };
 
 template <bool IsServer>
@@ -259,11 +258,7 @@ class KcpTunnel : public Tunnel<IsServer>
 	virtual void setEventHandler(KcpTunnelHandler *h)
 	{
 		mHandler = h;
-	}
-	virtual ikcpcb* _debugGetKcpCb() const
-	{
-		return mKcpCb;
-	}
+	}	
 
 	bool input(const void *data, size_t datalen);
 	uint32 update(uint32 current);

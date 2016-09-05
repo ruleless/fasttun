@@ -56,7 +56,7 @@ start() {
 	else
 		echo -n $"Starting ${NAME}: "
 		#daemon --check $DAEMON --user $USER "$DAEMON -f $PID -c $CONF > /dev/null"
-		daemon $DAEMON -c $CONF -f $PID
+		daemon $DAEMON -c $CONF -f $PID -v
 	fi
 
 	RETVAL=$?
