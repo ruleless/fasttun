@@ -91,7 +91,7 @@ template <bool IsServer>
 void KcpTunnel<IsServer>::flushSndBuf(const void *data, size_t datalen)
 {
 	const char *ptr = (const char *)data;
-	size_t maxLen = mKcpCb->mss<<7;
+	size_t maxLen = mKcpCb->mss<<6;
 	for (;;)
 	{
 		if (datalen <= maxLen) // in most case
