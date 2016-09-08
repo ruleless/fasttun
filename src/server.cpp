@@ -274,6 +274,20 @@ class Server : public Listener::Handler, public ServerBridge::Handler
 };
 //--------------------------------------------------------------------------
 
+void sigHandler(int signo)
+{
+	switch (signo)
+	{
+	case SIGPIPE:
+		{
+			logWarningLn("broken pipe!");
+		}
+		break;
+	default:
+		break;
+	}	
+}
+
 int main(int argc, char *argv[])
 {	
 	// parse parameter
@@ -377,7 +391,9 @@ int main(int argc, char *argv[])
 		delete netPoller;
 		core::closeTrace();
 		exit(EXIT_FAILURE);
-	}	
+	}
+
+	signal(SIGPIPE, sigHandler);
 
 	double maxWait = 0;
 	for (;;)
