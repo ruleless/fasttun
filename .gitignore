@@ -5,6 +5,7 @@
 *.d*
 *.ncb
 *.suo
+*.log
 *.idc
 *.ini
 *.user

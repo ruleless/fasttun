@@ -239,6 +239,7 @@ class Client : public Listener::Handler, public ClientBridge::Handler
 };
 //--------------------------------------------------------------------------
 
+static bool s_continueMainLoop = true;
 void sigHandler(int signo)
 {
 	switch (signo)
@@ -246,6 +247,30 @@ void sigHandler(int signo)
 	case SIGPIPE:
 		{
 			logWarningLn("broken pipe!");
+		}
+		break;
+	case SIGINT:
+		{
+			logTraceLn("catch SIGINT!");
+			s_continueMainLoop = false;
+		}
+		break;
+	case SIGQUIT:
+		{
+			logTraceLn("catch SIGQUIT!");
+			s_continueMainLoop = false;
+		}
+		break;
+	case SIGKILL:
+		{
+			logTraceLn("catch SIGKILL!");
+			s_continueMainLoop = false;
+		}
+		break;
+	case SIGTERM:
+		{
+			logTraceLn("catch SIGTERM!");
+			s_continueMainLoop = false;
 		}
 		break;
 	default:
@@ -357,16 +382,29 @@ int main(int argc, char *argv[])
 		core::closeTrace();
 		exit(EXIT_FAILURE);
 	}
-	
-	signal(SIGPIPE, sigHandler);
 
+	struct sigaction newAct;
+	newAct.sa_handler = sigHandler;
+	sigemptyset(&newAct.sa_mask);
+	newAct.sa_flags = 0;
+	
+	sigaction(SIGPIPE, &newAct, NULL);
+	
+	sigaction(SIGINT, &newAct, NULL);
+	sigaction(SIGQUIT, &newAct, NULL);
+	
+	sigaction(SIGKILL, &newAct, NULL);	
+	sigaction(SIGTERM, &newAct, NULL);
+	
 	double maxWait = 0;
-	for (;;)
+	logTraceLn("Enter Main Loop...");
+	while (s_continueMainLoop)
 	{
 		netPoller->processPendingEvents(maxWait);
 		maxWait = gTunnelManager->update();
-		maxWait *= 0.001f;
+		maxWait *= 0.001f;		
 	}
+	logTraceLn("Leave Main Loop...");
 
 	gTunnelManager->shutdown();
 	delete gTunnelManager;
