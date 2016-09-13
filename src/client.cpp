@@ -364,16 +364,7 @@ int main(int argc, char *argv[])
 	// create event poller
 	EventPoller *netPoller = EventPoller::create();
 
-	// create client		
-	Client cli(netPoller);
-	if (!cli.create((const SA *)&ListenAddr, sizeof(ListenAddr)))
-	{
-		logErrorLn("create client error!");
-		delete netPoller;
-		core::closeTrace();
-		exit(EXIT_FAILURE);
-	}
-
+	// kcp tunnel manager
 	gTunnelManager = new MyTunnelGroup(netPoller);
 	if (!gTunnelManager->create(remoteAddr))
 	{
@@ -382,6 +373,18 @@ int main(int argc, char *argv[])
 		core::closeTrace();
 		exit(EXIT_FAILURE);
 	}
+
+	// create client		
+	Client cli(netPoller);
+	if (!cli.create((const SA *)&ListenAddr, sizeof(ListenAddr)))
+	{
+		logErrorLn("create client error!");
+		gTunnelManager->shutdown();
+		delete gTunnelManager;
+		delete netPoller;
+		core::closeTrace();
+		exit(EXIT_FAILURE);
+	}	
 
 	struct sigaction newAct;
 	newAct.sa_handler = sigHandler;
@@ -393,7 +396,7 @@ int main(int argc, char *argv[])
 	sigaction(SIGINT, &newAct, NULL);
 	sigaction(SIGQUIT, &newAct, NULL);
 	
-	sigaction(SIGKILL, &newAct, NULL);	
+	// sigaction(SIGKILL, &newAct, NULL);	
 	sigaction(SIGTERM, &newAct, NULL);
 	
 	double maxWait = 0;
@@ -406,9 +409,12 @@ int main(int argc, char *argv[])
 	}
 	logTraceLn("Leave Main Loop...");
 
+	// finalise
+	cli.finalise();	
+	
 	gTunnelManager->shutdown();
 	delete gTunnelManager;
-	cli.finalise();	
+	
 	delete netPoller;
 
 	// close tracer
