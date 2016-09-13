@@ -453,6 +453,7 @@ int main(int argc, char *argv[])
 	delete netPoller;
 
 	// close tracer
+	logTraceLn("Exit Fasttun!");
 	core::closeTrace();
 	exit(0);
 }
