@@ -18,7 +18,7 @@ RM= -rm -rf
 COMMON_OBJS:= EventPoller.o SelectPoller.o EpollPoller.o Connection.o Listener.o \
 	FastConnection.o FasttunBase.o
 
-all:client.out server.out test.out
+all:client.out server.out test.out utest.out
 
 client.out:$(COMMON_OBJS) client.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
@@ -26,10 +26,13 @@ server.out:$(COMMON_OBJS) server.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 test.out:$(COMMON_OBJS) test.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
+utest.out:$(COMMON_OBJS) utest.o
+	$(CXX) -o $@ $^ $(LDFLAGS) -lcppunit
 
 client.o: client.cpp EventPoller.h Listener.h Connection.h KcpTunnel.h KcpTunnel.inl FastConnection.h
 server.o: server.cpp EventPoller.h Listener.h Connection.h KcpTunnel.h KcpTunnel.inl FastConnection.h Cache.h
 test.o: test.cpp EventPoller.h Listener.h Connection.h KcpTunnel.h KcpTunnel.inl FastConnection.h Cache.h
+utest.o: utest.cpp EventPoller.h Listener.h Connection.h KcpTunnel.h KcpTunnel.inl FastConnection.h Cache.h
 
 FasttunBase.o: FasttunBase.cpp FasttunBase.h
 EventPoller.o: EventPoller.cpp EventPoller.h SelectPoller.h EpollPoller.h FasttunBase.h
