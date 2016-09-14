@@ -94,12 +94,10 @@ class ServerBridge : public Connection::Handler, public FastConnection::Handler
 	virtual void onConnected(Connection *pConn)
 	{
 		_flushAll();
-		logInfoLn("connected to a internal connection!");
 	}
 	virtual void onDisconnected(Connection *pConn)
 	{
 		_reconnectInternal();
-		logInfoLn("disconnected with a internal connection!");
 	}
 
 	virtual void onRecv(Connection *pConn, const void *data, size_t datalen)
@@ -110,7 +108,7 @@ class ServerBridge : public Connection::Handler, public FastConnection::Handler
 	virtual void onError(Connection *pConn)
 	{
 		_reconnectInternal();
-		logInfoLn("occur an error at an internal connection! reason:"<<coreStrError());
+		logWarningLn("occur an error at an internal connection! reason:"<<coreStrError());
 	}
 
 	// FastConnection::Handler
