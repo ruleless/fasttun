@@ -5,6 +5,7 @@
 #include "cppunit/extensions/HelperMacros.h"
 
 #include "FasttunBase.h"
+#include "MessageReceiver.h"
 
 class UTest : public CppUnit::TestFixture
 {
@@ -21,7 +22,9 @@ class UTest : public CppUnit::TestFixture
 	
 	virtual void tearDown();
 
-	void testMessageReceiver();
+	void testMessageReceiver();	
+	void _onRecvMessage(const void *data, uint16 datalen, void*);
+	void _onRecvMsgError(void *);
 };
 
 #endif // __UTEST_H__

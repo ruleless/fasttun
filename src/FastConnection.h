@@ -6,6 +6,7 @@
 #include "KcpTunnel.h"
 #include "Connection.h"
 #include "Cache.h"
+#include "MessageReceiver.h"
 
 NAMESPACE_BEG(tun)
 
@@ -34,12 +35,10 @@ class FastConnection : public Connection::Handler, public KcpTunnelHandler
 			,mbTunnelConnected(false)
 			,mpHandler(NULL)
 			,mCache(NULL)
-			,mMsgRcvstate(MsgRcvState_NoData)
-			,mRcvdMsgLen(0)
+			,mMsgRcv(NULL)
 	{
-		memset(&mMsgLenRcvBuf, 0, sizeof(mMsgLenRcvBuf));
-		memset(&mCurMsg, 0, sizeof(mCurMsg));
 		mCache = new MyCache(this, &FastConnection::flush);
+		mMsgRcv = new MsgRcv(this, &FastConnection::onRecvMsg, &FastConnection::onRecvMsgErr);
 	}
 	
     virtual ~FastConnection();
@@ -86,42 +85,21 @@ class FastConnection : public Connection::Handler, public KcpTunnelHandler
 		return false;
 	}
 
-  private:
-	// return left data size
-	size_t parseMessage(const void *data, size_t datalen);
-	void clearCurMsg();
-
-	void handleMessage(const void *data, size_t datalen);
-	void sendMessage(int msgid, const void *data, size_t datalen);
+  private:	
+	void onRecvMsg(const void *data, uint8 datalen, void *user);
+	void onRecvMsgErr(void *user);
 	
-  private:
-	enum EMsgRcvState
-	{
-		MsgRcvState_NoData,
-		MsgRcvState_Error,
-		MsgRcvState_RcvdHead,
-		MsgRcvState_RcvComplete,
-	};
-
-	struct MessageLenBuf
-	{
-		int curlen;
-		char buf[sizeof(int)];
-	};
-	struct Message
-	{
-		int len;
-		char *data;		
-	};	
-
+	void sendMessage(int msgid, const void *data, size_t datalen);	
+	
+  private:	
 	enum
 	{
 		MsgId_CreateKcpTunnel = 0,
 		MsgId_ConfirmCreateKcpTunnel,
 	};
 	
-	static const int MAX_MSG_LEN = 65535;
 	typedef Cache<FastConnection> MyCache;
+	typedef msg::MessageReceiver<FastConnection, 64, uint8> MsgRcv;
 	
 	EventPoller *mEventPoller;
 	ITunnelGroup *mpTunnelGroup;
@@ -133,11 +111,8 @@ class FastConnection : public Connection::Handler, public KcpTunnelHandler
 	Handler *mpHandler;
 
 	MyCache *mCache;
-	
-	EMsgRcvState mMsgRcvstate;
-	MessageLenBuf mMsgLenRcvBuf;
-	int mRcvdMsgLen;
-	Message mCurMsg;
+
+	MsgRcv *mMsgRcv;
 };
 
 NAMESPACE_END // namespace tun

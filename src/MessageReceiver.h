@@ -5,11 +5,11 @@
 
 NAMESPACE_BEG(msg)
 
-template <class T, size_t MaxLen>
+template <class T, size_t MaxLen, class SizeType = size_t>
 class MessageReceiver
 {
-	typedef void (T::*RecvFunc)(const void *, size_t);
-	typedef void (T::*RecvErrFunc)();
+	typedef void (T::*RecvFunc)(const void *, SizeType, void *);
+	typedef void (T::*RecvErrFunc)(void *);
   public:
     MessageReceiver(T *host, RecvFunc recvFunc, RecvErrFunc recvErrFunc)
 			:mRcvdState(MsgRcvState_NoData)
@@ -29,20 +29,20 @@ class MessageReceiver
 			free(mCurMsg.ptr);	
 	}
 
-	void input(const void *data, size_t datalen)
+	void input(const void *data, SizeType datalen, void *user)
 	{
 		const char *ptr = (const char *)data;
 		for (;;)		
 		{
-			size_t leftlen = parseMessage(ptr, datalen);
-			if (MsgRcvState_Error == mMsgRcvstate)
+			SizeType leftlen = parseMessage(ptr, datalen);
+			if (MsgRcvState_Error == mRcvdState)
 			{
-				(mHost->*mRecvErrFunc)();
+				(mHost->*mRecvErrFunc)(user);
 				break;
 			}
-			else if (MsgRcvState_RcvComplete == mMsgRcvstate)
+			else if (MsgRcvState_RcvComplete == mRcvdState)
 			{
-				(mHost->*mRecvFunc)(mCurMsg.ptr, mCurMsg.len);
+				(mHost->*mRecvFunc)(mCurMsg.ptr, mCurMsg.len, user);
 				clearCurMsg();
 			}
 
@@ -58,16 +58,21 @@ class MessageReceiver
 		}
 	}
 
+	void clear()
+	{
+		clearCurMsg();
+	}
+
   private:
-	size_t parseMessage(const void *data, size_t datalen)
+	SizeType parseMessage(const void *data, SizeType datalen)
 	{
 		const char *ptr = (const char *)data;
 	
 		// 先收取消息长度
 		if (MsgRcvState_NoData == mRcvdState)
 		{
-			assert(sizeof(size_t) >= mRcvdLenBuf.curlen);
-			size_t copylen = sizeof(size_t)-mRcvdLenBuf.curlen;
+			assert(sizeof(SizeType) >= mRcvdLenBuf.curlen);
+			SizeType copylen = sizeof(SizeType)-mRcvdLenBuf.curlen;
 			copylen = min(copylen, datalen);
 
 			if (copylen > 0)
@@ -77,21 +82,21 @@ class MessageReceiver
 				ptr += copylen;
 				datalen -= copylen;
 			}
-			if (mRcvdLenBuf.curlen == sizeof(size_t)) // 消息长度已获取
-			{			
+			if (mRcvdLenBuf.curlen == sizeof(SizeType)) // 消息长度已获取
+			{
 				MemoryStream stream;
-				stream.append(mRcvdLenBuf.buf, sizeof(size_t));
+				stream.append(mRcvdLenBuf.buf, sizeof(SizeType));
 				stream>>mCurMsg.len;
 				if (mCurMsg.len > MaxLen)
 				{
-					mRcvdLenBuf = MsgRcvState_Error;
+					mRcvdState = MsgRcvState_Error;
 					mCurMsg.len = 0;
 					return datalen;
 				}
 			
 				mRcvdState = MsgRcvState_RcvdHead;
 				mRcvdMsgLen = 0;
-				mCurMsg.ptr = malloc(mCurMsg.len);
+				mCurMsg.ptr = (char *)malloc(mCurMsg.len);
 				assert(mCurMsg.ptr != NULL && "mCurMsg.ptr != NULL");
 			}
 		}
@@ -100,7 +105,7 @@ class MessageReceiver
 		if (MsgRcvState_RcvdHead == mRcvdState)
 		{
 			assert(mCurMsg.len >= mRcvdMsgLen);
-			size_t copylen = mCurMsg.len-mRcvdMsgLen;		
+			SizeType copylen = mCurMsg.len-mRcvdMsgLen;		
 			copylen = min(copylen, datalen);
 
 			if (copylen > 0)
@@ -128,8 +133,7 @@ class MessageReceiver
 		if (mCurMsg.ptr)
 			free(mCurMsg.ptr);
 		mRcvdMsgLen = 0;
-		mCurMsg.ptr = NULL;
-		mCurMsg.len = 0;
+		memset(&mCurMsg, 0, sizeof(mCurMsg));
 	}
 
   private:
@@ -143,13 +147,13 @@ class MessageReceiver
 
 	struct MessageLenBuf
 	{
-		size_t curlen;
-		char buf[sizeof(size_t)];
+		SizeType curlen;
+		char buf[sizeof(SizeType)];
 	};
 	
 	struct Message
 	{
-		size_t len;
+		SizeType len;
 		char *ptr;
 	};
 
@@ -160,7 +164,7 @@ class MessageReceiver
 	MessageLenBuf mRcvdLenBuf;
 
 	// message body
-	size_t mRcvdMsgLen;
+	SizeType mRcvdMsgLen;
 	Message mCurMsg;
 
 	// message dealer

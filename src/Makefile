@@ -32,7 +32,8 @@ utest.out:$(COMMON_OBJS) utest.o
 client.o: client.cpp EventPoller.h Listener.h Connection.h KcpTunnel.h KcpTunnel.inl FastConnection.h
 server.o: server.cpp EventPoller.h Listener.h Connection.h KcpTunnel.h KcpTunnel.inl FastConnection.h Cache.h
 test.o: test.cpp EventPoller.h Listener.h Connection.h KcpTunnel.h KcpTunnel.inl FastConnection.h Cache.h
-utest.o: utest.cpp EventPoller.h Listener.h Connection.h KcpTunnel.h KcpTunnel.inl FastConnection.h Cache.h
+utest.o: utest.cpp EventPoller.h Listener.h Connection.h KcpTunnel.h KcpTunnel.inl FastConnection.h Cache.h \
+	MessageReceiver.h
 
 FasttunBase.o: FasttunBase.cpp FasttunBase.h
 EventPoller.o: EventPoller.cpp EventPoller.h SelectPoller.h EpollPoller.h FasttunBase.h
@@ -40,7 +41,8 @@ SelectPoller.o: SelectPoller.cpp SelectPoller.h EventPoller.h FasttunBase.h
 EpollPoller.o: EpollPoller.cpp EpollPoller.h EventPoller.h FasttunBase.h
 Listener.o: Listener.cpp Listener.h EventPoller.h FasttunBase.h
 Connection.o: Connection.cpp Connection.h EventPoller.h FasttunBase.h
-FastConnection.o: FastConnection.cpp FastConnection.h EventPoller.h KcpTunnel.h KcpTunnel.inl Connection.h Cache.h FasttunBase.h
+FastConnection.o: FastConnection.cpp FastConnection.h EventPoller.h KcpTunnel.h KcpTunnel.inl Connection.h Cache.h FasttunBase.h \
+	MessageReceiver.h
 
 
 install-cli:

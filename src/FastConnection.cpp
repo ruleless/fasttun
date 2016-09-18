@@ -29,6 +29,7 @@ static ConvGen<10000> s_convGen;
 FastConnection::~FastConnection()
 {
 	shutdown();
+	delete mMsgRcv;
 	delete mCache;
 }
 
@@ -103,7 +104,7 @@ bool FastConnection::connect(const SA *sa, socklen_t salen)
 
 void FastConnection::shutdown()
 {
-	clearCurMsg();
+	mMsgRcv->clear();
 	if (mpKcpTunnel)
 	{
 		s_convGen.restorId(mpKcpTunnel->getConv());
@@ -159,31 +160,7 @@ void FastConnection::onDisconnected(Connection *pConn)
 
 void FastConnection::onRecv(Connection *pConn, const void *data, size_t datalen)
 {
-	const char *pMsg = (const char *)data;
-	for (;;)		
-	{
-		size_t leftlen = parseMessage(pMsg, datalen);
-		if (MsgRcvState_Error == mMsgRcvstate)
-		{
-			onError(pConn);
-			break;
-		}
-		else if (MsgRcvState_RcvComplete == mMsgRcvstate)
-		{
-			handleMessage(mCurMsg.data, mCurMsg.len);
-			clearCurMsg();
-		}
-
-		if (leftlen > 0)
-		{
-			pMsg += (datalen-leftlen);
-			datalen = leftlen;
-		}
-		else
-		{
-			break;
-		}
-	}
+	mMsgRcv->input(data, datalen, pConn);
 }
 
 void FastConnection::onError(Connection *pConn)
@@ -211,78 +188,7 @@ void FastConnection::onRecv(const void *data, size_t datalen)
 		mpHandler->onRecv(this, data, datalen);
 }
 
-size_t FastConnection::parseMessage(const void *data, size_t datalen)
-{
-	const char *pMsg = (const char *)data;
-	
-	// 先收取消息长度
-	if (MsgRcvState_NoData == mMsgRcvstate)
-	{
-		int copylen = sizeof(int)-mMsgLenRcvBuf.curlen;
-		assert(copylen >= 0);
-		copylen = min(copylen, datalen);
-
-		if (copylen > 0)
-		{
-			memcpy(mMsgLenRcvBuf.buf+mMsgLenRcvBuf.curlen, pMsg, copylen);
-			mMsgLenRcvBuf.curlen += copylen;
-			pMsg += copylen;
-			datalen -= copylen;
-		}
-		if (mMsgLenRcvBuf.curlen == sizeof(int)) // 消息长度已获取
-		{			
-			MemoryStream stream;
-			stream.append(mMsgLenRcvBuf.buf, sizeof(int));
-			stream>>mCurMsg.len;
-			if (mCurMsg.len <= 0 || mCurMsg.len > MAX_MSG_LEN)
-			{
-				mMsgRcvstate = MsgRcvState_Error;
-				mCurMsg.len = -1;
-				return datalen;
-			}
-			
-			mMsgRcvstate = MsgRcvState_RcvdHead;
-			mRcvdMsgLen = 0;
-			mCurMsg.data = (char *)malloc(mCurMsg.len);
-		}
-	}
-
-	// 再收取消息内容
-	if (MsgRcvState_RcvdHead == mMsgRcvstate)
-	{
-		int copylen = mCurMsg.len-mRcvdMsgLen;
-		assert(copylen >= 0 && "copylen >= 0");
-		assert(mCurMsg.data != NULL && "mCurMsg.data != NULL");
-		copylen = min(copylen, datalen);
-
-		if (copylen > 0)
-		{
-			memcpy(mCurMsg.data+mRcvdMsgLen, pMsg, copylen);
-			mRcvdMsgLen += copylen;
-			pMsg += copylen;
-			datalen -= copylen;
-		}
-		if (mRcvdMsgLen == mCurMsg.len) // 消息体已获取
-		{
-			mMsgRcvstate = MsgRcvState_RcvComplete;
-		}
-	}
-
-	return datalen;
-}
-
-void FastConnection::clearCurMsg()
-{
-	mMsgRcvstate = MsgRcvState_NoData;
-	memset(&mMsgLenRcvBuf, 0, sizeof(mMsgLenRcvBuf));
-	if (mCurMsg.data)
-		free(mCurMsg.data);
-	mRcvdMsgLen = 0;
-	mCurMsg.data = NULL;
-	mCurMsg.len = 0;
-}
-
-void FastConnection::handleMessage(const void *data, size_t datalen)
+void FastConnection::onRecvMsg(const void *data, uint8 datalen, void *user)
 {
 	MemoryStream stream;
 	stream.append(data, datalen);
@@ -333,6 +239,11 @@ void FastConnection::handleMessage(const void *data, size_t datalen)
 		mpHandler->onCreateKcpTunnelFailed(this);
 }
 
+void FastConnection::onRecvMsgErr(void *user)
+{
+	onError((Connection *)user);
+}
+
 void FastConnection::sendMessage(int msgid, const void *data, size_t datalen)
 {
 	if (NULL == mpConnection)
@@ -347,7 +258,7 @@ void FastConnection::sendMessage(int msgid, const void *data, size_t datalen)
 	}
 	
 	MemoryStream stream;
-	int msglen = sizeof(msgid)+datalen;
+	uint8 msglen = sizeof(msgid)+datalen;
 	stream<<msglen;
 	stream<<msgid;
 	if (data != NULL && datalen > 0)
