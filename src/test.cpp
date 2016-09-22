@@ -52,7 +52,7 @@ class ClientBridge : public Connection::Handler
 		mpIntConn->setEventHandler(this);
 
 		mpExtConn = new Connection(mEventPoller);
-		mLastExtConnTime = core::coreClock();
+		mLastExtConnTime = core::getClock();
 		if (!mpExtConn->connect((const SA *)&RemoteAddr, sizeof(RemoteAddr)))
 		{
 			mpIntConn->shutdown();
@@ -141,7 +141,7 @@ class ClientBridge : public Connection::Handler
 
 	void _reconnectExternal()
 	{
-		ulong curtick = core::coreClock();
+		ulong curtick = core::getClock();
 		if (curtick > mLastExtConnTime+1000)
 		{
 			mLastExtConnTime = curtick;

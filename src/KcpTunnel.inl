@@ -243,7 +243,7 @@ template <bool IsServer>
 uint32 KcpTunnelGroup<IsServer>::update()
 {
 	// update all tunnels
-	uint32 current = core::coreClock();
+	uint32 current = core::getClock();
 	uint32 maxWait = 0xFFFFFFFF;
 	typename Tunnels::iterator it = this->mTunnels.begin();
 	for (; it != this->mTunnels.end(); ++it)
@@ -283,7 +283,7 @@ int KcpTunnelGroup<IsServer>::handleInputNotification(int fd)
 			{
 				pTunnel->input(buf, recvlen);					
 				pTunnel->onRecvPeerAddr((const SA *)&addr, addrlen);
-				pTunnel->update(core::coreClock());
+				pTunnel->update(core::getClock());
 			}
 		}
 	}	
