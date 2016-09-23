@@ -7,6 +7,8 @@
 
 using namespace tun;
 
+core::Timers tun::gTimer;
+
 typedef KcpTunnelGroup<true> MyTunnelGroup;
 static MyTunnelGroup *gTunnelManager = NULL;
 
@@ -14,8 +16,12 @@ static sockaddr_in ListenAddr;
 static sockaddr_in ConnectAddr;
 
 //--------------------------------------------------------------------------
-class ServerBridge : public Connection::Handler, public FastConnection::Handler
+class ServerBridge : public Connection::Handler
+				   , public FastConnection::Handler
+				   , public TimerHandler
 {
+	static const uint32 CONNCHECK_INTERVAL = 30000;
+	
   public:
 	struct Handler
 	{
@@ -30,6 +36,8 @@ class ServerBridge : public Connection::Handler, public FastConnection::Handler
 			,mpExtConn(NULL)
 			,mCache(NULL)
 			,mLastExtConnTime(0)
+			,mHeartBeatTimer()
+			,mConnCheckTimer()
 	{
 		mCache = new MyCache(this, &ServerBridge::flush);
 	}
@@ -66,11 +74,22 @@ class ServerBridge : public Connection::Handler, public FastConnection::Handler
 		}
 		mpIntConn->setEventHandler(this);
 
+		uint32 curClock = core::getClock();
+		mHeartBeatTimer = gTimer.add(curClock+HeartBeatRecord::HEARTBEAT_INTERVAL,
+									 HeartBeatRecord::HEARTBEAT_INTERVAL,
+									 this, NULL);
+		mConnCheckTimer = gTimer.add(curClock+CONNCHECK_INTERVAL,
+									 CONNCHECK_INTERVAL,
+									 this, NULL);
+
 		return true;
 	}
 
 	void shutdown()
 	{
+		mHeartBeatTimer.cancel();
+		mConnCheckTimer.cancel();
+		
 		if (mpExtConn)
 		{
 			mpExtConn->shutdown();
@@ -143,6 +162,30 @@ class ServerBridge : public Connection::Handler, public FastConnection::Handler
 		}
 	}
 
+	// TimerHandler
+	virtual void onTimeout(TimerHandle handle, void *pUser)
+	{
+		if (handle == mHeartBeatTimer)
+		{
+			if (mpExtConn)
+				mpExtConn->triggerHeartBeatPacket();
+		}
+		else if (handle == mConnCheckTimer)
+		{
+			if (mpExtConn)
+			{
+				const HeartBeatRecord& rec = mpExtConn->getHeartBeatRecord();
+
+				if (rec.isTimeout())
+				{
+					logInfoLn("External Connection Timeout!");
+					if (mpHandler)
+						mpHandler->onExtConnError(this);
+				}
+			}
+		}
+	}
+
 	void _reconnectInternal()
 	{
 		ulong curtick = core::getClock();
@@ -177,6 +220,9 @@ class ServerBridge : public Connection::Handler, public FastConnection::Handler
 	MyCache *mCache;
 
 	ulong mLastExtConnTime;
+
+	TimerHandle mHeartBeatTimer;
+	TimerHandle mConnCheckTimer;
 };
 //--------------------------------------------------------------------------
 
@@ -432,13 +478,25 @@ int main(int argc, char *argv[])
 	// sigaction(SIGKILL, &newAct, NULL);	
 	sigaction(SIGTERM, &newAct, NULL);
 
+	static const uint32 MAX_WAIT = 60000;
 	double maxWait = 0;
+	uint32 curClock = 0, nextKcpUpdateInterval = 0, nextTimerCheckInterval = 0;
 	logTraceLn("Enter Main Loop...");
 	while (s_continueMainLoop)
 	{
+		curClock = core::getClock();
+
 		netPoller->processPendingEvents(maxWait);
-		maxWait = gTunnelManager->update();
-		maxWait *= 0.001f;
+
+		nextKcpUpdateInterval = gTunnelManager->update();
+
+		gTimer.process(curClock);
+		nextTimerCheckInterval = gTimer.nextExp(curClock);
+		if (0 == nextTimerCheckInterval)
+			nextTimerCheckInterval = MAX_WAIT;
+
+		maxWait  = min(nextKcpUpdateInterval, nextTimerCheckInterval);
+		maxWait *= 0.001f;		
 	}
 	logTraceLn("Leave Main Loop...");
 

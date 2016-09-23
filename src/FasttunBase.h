@@ -31,6 +31,8 @@ using core::MemoryStream;
 using core::getTimeStamp;
 using core::coreStrError;
 using core::Ini;
+using core::TimerHandler;
+using core::TimerHandle;
 
 typedef struct sockaddr SA;
 
@@ -70,6 +72,34 @@ class IDGenerator
 
 	IDList mAvailableIds;
 };
+
+struct HeartBeatRecord
+{
+    uint32 packetSentTime, packetRecvTime;
+
+	static const uint32 HEARTBEAT_INTERVAL = 5000;
+	static const uint32 CONNTIMEOUT_TIME = HEARTBEAT_INTERVAL*4;
+	
+	HeartBeatRecord()
+			:packetSentTime(0)
+			,packetRecvTime(0)
+	{}
+
+	bool isTimeout() const
+	{
+		uint32 curClock = core::getClock();
+		if (curClock >= packetSentTime &&
+			curClock >= packetRecvTime &&
+			curClock-packetSentTime <= HEARTBEAT_INTERVAL*2 &&			 
+			packetRecvTime > 0 && curClock-packetRecvTime >= CONNTIMEOUT_TIME)
+		{
+			return true;
+		}
+		return false;
+	}
+};
+
+extern core::Timers gTimer;
 
 void daemonize(const char *path);
 

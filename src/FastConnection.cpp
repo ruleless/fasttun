@@ -145,6 +145,17 @@ void FastConnection::flush(const void *data, size_t datalen)
 	mpKcpTunnel->send(data, datalen);
 }
 
+void FastConnection::triggerHeartBeatPacket()
+{
+	mHeartBeatRecord.packetSentTime = core::getClock();
+	sendMessage(MsgId_HeartBeat_Request, NULL, 0);
+}
+
+const HeartBeatRecord& FastConnection::getHeartBeatRecord() const
+{
+	return mHeartBeatRecord;
+}
+
 void FastConnection::onConnected(Connection *pConn)
 {
 	if (mpHandler)
@@ -229,6 +240,12 @@ void FastConnection::onRecvMsg(const void *data, uint8 datalen, void *user)
 			mbTunnelConnected = true;
 			_flushAll();
 		}
+		break;
+	case MsgId_HeartBeat_Request:
+		sendMessage(MsgId_HeartBeat_Response, NULL, 0);
+		break;
+	case MsgId_HeartBeat_Response:
+		mHeartBeatRecord.packetRecvTime = core::getClock();
 		break;
 	default:
 		logErrorLn("FastConnection::handleMessage() undefined message!");

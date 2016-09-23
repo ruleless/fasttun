@@ -6,6 +6,8 @@
 
 using namespace tun;
 
+core::Timers tun::gTimer;
+
 typedef KcpTunnelGroup<false> MyTunnelGroup;
 static MyTunnelGroup *gTunnelManager = NULL;
 
@@ -398,13 +400,25 @@ int main(int argc, char *argv[])
 	
 	// sigaction(SIGKILL, &newAct, NULL);	
 	sigaction(SIGTERM, &newAct, NULL);
-	
+
+	static const uint32 MAX_WAIT = 60000;
 	double maxWait = 0;
+	uint32 curClock = 0, nextKcpUpdateInterval = 0, nextTimerCheckInterval = 0;
 	logTraceLn("Enter Main Loop...");
 	while (s_continueMainLoop)
 	{
+		curClock = core::getClock();
+		
 		netPoller->processPendingEvents(maxWait);
-		maxWait = gTunnelManager->update();
+		
+		nextKcpUpdateInterval = gTunnelManager->update();
+
+		gTimer.process(curClock);
+		nextTimerCheckInterval = gTimer.nextExp(curClock);
+		if (0 == nextTimerCheckInterval)
+			nextTimerCheckInterval = MAX_WAIT;
+
+		maxWait  = min(nextKcpUpdateInterval, nextTimerCheckInterval);
 		maxWait *= 0.001f;		
 	}
 	logTraceLn("Leave Main Loop...");

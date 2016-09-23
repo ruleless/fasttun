@@ -36,6 +36,7 @@ class FastConnection : public Connection::Handler, public KcpTunnelHandler
 			,mpHandler(NULL)
 			,mCache(NULL)
 			,mMsgRcv(NULL)
+			,mHeartBeatRecord()
 	{
 		mCache = new MyCache(this, &FastConnection::flush);
 		mMsgRcv = new MsgRcv(this, &FastConnection::onRecvMsg, &FastConnection::onRecvMsgErr);
@@ -52,6 +53,9 @@ class FastConnection : public Connection::Handler, public KcpTunnelHandler
 	int send(const void *data, size_t datalen);
 	void _flushAll();
 	void flush(const void *data, size_t datalen);
+
+	void triggerHeartBeatPacket();
+	const HeartBeatRecord& getHeartBeatRecord() const;
 	
 	// Connection::Handler
 	virtual void onConnected(Connection *pConn);
@@ -96,6 +100,8 @@ class FastConnection : public Connection::Handler, public KcpTunnelHandler
 	{
 		MsgId_CreateKcpTunnel = 0,
 		MsgId_ConfirmCreateKcpTunnel,
+		MsgId_HeartBeat_Request,
+		MsgId_HeartBeat_Response,
 	};
 	
 	typedef Cache<FastConnection> MyCache;
@@ -113,6 +119,8 @@ class FastConnection : public Connection::Handler, public KcpTunnelHandler
 	MyCache *mCache;
 
 	MsgRcv *mMsgRcv;
+
+	HeartBeatRecord mHeartBeatRecord;
 };
 
 NAMESPACE_END // namespace tun
