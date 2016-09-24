@@ -175,19 +175,7 @@ void FastConnection::onRecv(Connection *pConn, const void *data, size_t datalen)
 }
 
 void FastConnection::onError(Connection *pConn)
-{	
-	sockaddr_in sa;
-	socklen_t salen = sizeof(sa);
-	if (pConn->getpeername((SA *)&sa, &salen))
-	{
-		char ip[MAX_BUF] = {0};
-		if (inet_ntop(AF_INET, &sa.sin_addr, ip, sizeof(ip)))
-		{
-			logErrorLn("FastConnection::onError() with "<<ip<<":"<<ntohs(sa.sin_port)<<
-					   " reason:"<<coreStrError());
-		}		
-	}
-
+{
 	shutdown();
 	if (mpHandler)
 		mpHandler->onError(this);
@@ -280,10 +268,7 @@ void FastConnection::sendMessage(int msgid, const void *data, size_t datalen)
 	stream<<msgid;
 	if (data != NULL && datalen > 0)
 		stream.append(data, datalen);
-	if (mpConnection->send(stream.data(), stream.length()) != stream.length())
-	{
-		logErrorLn("FastConnection::sendMessage() sentlen is not supposed!");
-	}
+	mpConnection->send(stream.data(), stream.length());
 }
 
 NAMESPACE_END // namespace tun

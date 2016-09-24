@@ -24,12 +24,7 @@ bool Connection::acceptConnection(int connfd)
 		goto err_1;
 	}
 	
-	if (!mEventPoller->registerForRead(mFd, this))
-	{
-		logErrorLn("Connection::acceptConnection()  registerForRead failed! "<<coreStrError());
-		goto err_1;
-	}
-	mbRegForRead = true;
+	tryRegReadEvent();
 
 	mConnStatus = ConnStatus_Connected;
 	return true;
@@ -92,12 +87,7 @@ bool Connection::connect(const SA *sa, socklen_t salen)
 			goto err_1;
 	}
 
-	if (!mEventPoller->registerForWrite(mFd, this))
-	{
-		logErrorLn("Connection::connect()  registerForWrite failed! "<<coreStrError());
-		goto err_1;
-	}
-	mbRegForWrite = true;
+	tryRegWriteEvent();
 
 	mConnStatus = ConnStatus_Connecting;
 	return true;
@@ -114,30 +104,51 @@ void Connection::shutdown()
 	if (mFd < 0)
 		return;
 
-	if (mbRegForWrite)
-	{
-		mEventPoller->deregisterForWrite(mFd);
-		mbRegForWrite = false;
-	}
-	if (mbRegForRead)
-	{
-		mEventPoller->deregisterForRead(mFd);
-		mbRegForRead = false;
-	}
+	tryUnregWriteEvent();
+	tryUnregReadEvent();
 	close(mFd);
 	mFd = -1;
 	mConnStatus = ConnStatus_Closed;
+
+	TcpPacketList::iterator it = mTcpPacketList.begin();
+	for (; it != mTcpPacketList.end(); ++it)
+		delete *it;
+	mTcpPacketList.clear();
 }
 
-int Connection::send(const void *data, size_t datalen)
+void Connection::send(const void *data, size_t datalen)
 {
 	if (mFd < 0)
 	{
-		logErrorLn("Connection::send()  send error! socket uninited!");
-		return -1;
+		logErrorLn("Connection::send()  send error! socket uninited or shuted!");
+		return;
+	}
+	if (mConnStatus != ConnStatus_Connected)
+	{
+		logErrorLn("Connection::send()  can't send data in such status("<<mConnStatus<<")");
+		return;
 	}
 
-	return ::send(mFd, data, datalen, 0);
+	const char *ptr = (const char *)data;
+	if (tryFlushRemainPacket())
+	{
+		int sentlen = ::send(mFd, data, datalen, 0);
+		// int sentlen = -1; errno = EAGAIN;
+		if (sentlen == datalen)
+			return;
+
+		if (sentlen > 0)
+		{
+			ptr += sentlen;
+			datalen -= sentlen;
+		}
+	}
+
+	if (checkSocketErrors())
+		return;
+
+	cachePacket(ptr, datalen);
+	tryRegWriteEvent(); // 注册发送缓冲区可写事件
 }
 
 bool Connection::getpeername(SA *sa, socklen_t *salen) const
@@ -214,11 +225,11 @@ int Connection::handleInputNotification(int fd)
 }
 
 int Connection::handleOutputNotification(int fd)
-{
-	mbRegForWrite = false;
-	mEventPoller->deregisterForWrite(fd);
+{	
 	if (ConnStatus_Connecting == mConnStatus)
 	{
+		tryUnregWriteEvent();
+		
 		int err = 0;
 		socklen_t errlen = sizeof(int);
 		if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &errlen) < 0 || err != 0)
@@ -236,14 +247,175 @@ int Connection::handleOutputNotification(int fd)
 			return 0;
 		}
 		
-		mEventPoller->registerForRead(fd, this);
-		mbRegForRead = true;
+		tryRegReadEvent();
 		mConnStatus = ConnStatus_Connected;
 		if (mHandler)
 			mHandler->onConnected(this);
 	}
+	else if (ConnStatus_Connected == mConnStatus)
+	{
+		tryFlushRemainPacket();
+		if (checkSocketErrors())
+			return 0;
+	}
 
 	return 0;
+}
+
+void Connection::tryRegReadEvent()
+{
+	if (!mbRegForRead)
+	{
+		mbRegForRead = true;
+		mEventPoller->registerForRead(mFd, this);				
+	}
+}
+
+void Connection::tryUnregReadEvent()
+{
+	if (mbRegForRead)
+	{
+		mbRegForRead = false;
+		mEventPoller->deregisterForRead(mFd);
+	}
+}
+
+void Connection::tryRegWriteEvent()
+{
+	if (!mbRegForWrite)
+	{
+		mbRegForWrite = true;
+		mEventPoller->registerForWrite(mFd, this);
+	}
+}
+
+void Connection::tryUnregWriteEvent()
+{
+	if (mbRegForWrite)
+	{
+		mbRegForWrite = false;
+		mEventPoller->deregisterForWrite(mFd);
+	}	
+}
+
+bool Connection::tryFlushRemainPacket()
+{
+	if (mTcpPacketList.empty())
+	{
+		return true;
+	}
+	
+	TcpPacketList::iterator it = mTcpPacketList.begin();
+	for (; it != mTcpPacketList.end();)
+	{
+		TcpPacket *p = *it;
+		assert(p->buflen > p->sentlen && "p->buflen > p->sentlen");
+		size_t len = p->buflen - p->sentlen;
+		int sentlen = ::send(mFd, p->buf+p->sentlen, len, 0);
+		
+		if (len == sentlen)
+		{
+			delete p;
+			mTcpPacketList.erase(it++);
+			continue;
+		}
+		
+		if (sentlen > 0)
+			p->sentlen += sentlen;
+		break;
+	}
+
+	if (mTcpPacketList.empty())
+	{
+		tryUnregWriteEvent();
+		return true;
+	}
+		
+	return false;
+}
+
+void Connection::cachePacket(const void *data, size_t datalen)
+{
+	TcpPacket *p = new TcpPacket(); assert(p && "tcppacket != NULL");
+	p->buf = (char *)malloc(datalen); assert(p->buf && "packet->buf != NULL");
+	memcpy(p->buf, data, datalen);
+	p->buflen = datalen;
+	p->sentlen = 0;
+	mTcpPacketList.push_back(p);
+}
+
+bool Connection::checkSocketErrors()
+{
+	EReason err = _checkSocketErrors();
+	if (err != Reason_ResourceUnavailable)
+	{
+		shutdown();
+		if (mHandler)
+		{
+			mHandler->onError(this);
+		}
+		return true;
+	}
+	return false;
+}
+
+EReason Connection::_checkSocketErrors()
+{
+	int err;
+	EReason reason;
+
+#ifdef unix
+	err = errno;
+
+	switch (err)
+	{
+	case ECONNREFUSED:
+		reason = Reason_NoSuchPort;
+		break;
+	case EAGAIN:
+		reason = Reason_ResourceUnavailable;
+		break;
+	case EPIPE:
+		reason = Reason_ClientDisconnected;
+		break;
+	case ECONNRESET:
+		reason = Reason_ClientDisconnected;
+		break;
+	case ENOBUFS:
+		reason = Reason_TransmitQueueFull;
+		break;
+	default:
+		reason = Reason_GeneralNetwork;
+		break;
+	}
+#else
+	err = WSAGetLastError();
+
+	if (err == WSAEWOULDBLOCK || err == WSAEINTR)
+	{
+		reason = Reason_ResourceUnavailable;
+	}
+	else
+	{
+		switch (err)
+		{
+		case WSAECONNREFUSED:
+			reason = Reason_NoSuchPort; 
+			break;
+		case WSAECONNRESET:
+			reason = Reason_ClientDisconnected; 
+			break;
+		case WSAECONNABORTED:
+			reason = Reason_ClientDisconnected; 
+			break;
+		default:
+			reason = Reason_GeneralNetwork;
+			break;
+		}
+	}
+#endif
+
+	return reason;
 }
 
 NAMESPACE_END // namespace tun

@@ -4,6 +4,7 @@
 #include "FasttunBase.h"
 #include "EventPoller.h"
 #include "Cache.h"
+#include "UdpPacketSender.h"
 #include "../kcp/ikcp.h"
 
 NAMESPACE_BEG(tun)
@@ -34,7 +35,12 @@ struct ITunnelGroup
 {
 	virtual ~ITunnelGroup() {};
     virtual ITunnel* createTunnel(uint32 conv) = 0;
-	virtual void destroyTunnel(ITunnel *pTunnel) = 0;
+	virtual void destroyTunnel(ITunnel *pTunnel) = 0;	
+
+	virtual void regOutputNotification(OutputNotificationHandler *p) = 0;
+	virtual void unregOutputNotification(OutputNotificationHandler *p) = 0;
+	
+	virtual int getSockFd() const = 0;
 };
 
 template <bool IsServer>
@@ -73,11 +79,16 @@ class TunnelGroup : public ITunnelGroup
 		return true;
 	}
 
-	int _output(const void *data, size_t datalen)
+	int _processSend(const void *data, size_t datalen)
 	{
 		return sendto(mFd, data, datalen, 0, (SA *)&mSockAddr, sizeof(mSockAddr));
-	}	
+	}
 
+	virtual int getSockFd() const
+	{
+		return mFd;
+	}
+	
   protected:
 	sockaddr_in mSockAddr;
 	int mFd;
@@ -120,8 +131,8 @@ class TunnelGroup<true> : public ITunnelGroup
 
 		return true;
 	}
-	
-	int _getSockFd() const
+
+	virtual int getSockFd() const
 	{
 		return mFd;
 	}
@@ -138,12 +149,12 @@ struct KcpTunnelHandler
 	virtual void onRecv(const void *data, size_t datalen) = 0;
 };
 
-struct ITunnel
+struct ITunnel : public IUdpSender
 {
 	virtual ~ITunnel() {};
 
 	virtual int send(const void *data, size_t datalen) = 0;
-	virtual int _output(const void *data, size_t datalen) = 0;
+	virtual void _output(const void *data, size_t datalen) = 0;
 
 	virtual uint32 getConv() const = 0;
 
@@ -155,22 +166,38 @@ class Tunnel : public ITunnel
 {
 	typedef TunnelGroup<IsServer> MyTunnelGroup;
   public:
-	virtual int _output(const void *data, size_t datalen)
+	virtual void _output(const void *data, size_t datalen)
 	{
-		return this->mpGroup->_output(data, datalen);
+		mUdpSender.send(data, datalen);		
 	}
 
 	void onRecvPeerAddr(const SA *sa, socklen_t salen) {}
 
+	// IUdpSender
+	virtual int processSend(const void *data, size_t datalen)
+	{
+		return this->mpGroup->_processSend(data, datalen);
+	}
+	virtual void regOutputNotification(OutputNotificationHandler *p)
+	{
+		mpGroup->regOutputNotification(p);
+	}
+	virtual void unregOutputNotification(OutputNotificationHandler *p)
+	{
+		mpGroup->unregOutputNotification(p);
+	}
+
   protected:
 	Tunnel(MyTunnelGroup *pGroup)
 			:mpGroup(pGroup)
+			,mUdpSender(this)
 	{
 	}
     virtual ~Tunnel() {}
 	
   protected:
-	MyTunnelGroup *mpGroup;	   	
+	MyTunnelGroup *mpGroup;
+	UdpPacketSender mUdpSender;
 };
 
 template <>
@@ -179,19 +206,16 @@ class Tunnel<true> : public ITunnel
 	typedef TunnelGroup<true> MyTunnelGroup;
 	typedef Cache< Tunnel<true> > MyCache;
   public:    
-	virtual int _output(const void *data, size_t datalen)
+	virtual void _output(const void *data, size_t datalen)
 	{
 		if (this->mAddrSettled)
 		{
 			this->mCache->flushAll();
-			return sendto(this->mpGroup->_getSockFd(),
-						  data, datalen, 0,
-						  (SA *)&this->mSockAddr, sizeof(this->mSockAddr));
+			mUdpSender.send(data, datalen);
 		}
 		else
 		{
 			this->mCache->cache(data, datalen);
-			return datalen;
 		}
 	}	
 
@@ -203,14 +227,29 @@ class Tunnel<true> : public ITunnel
 
 	void flush(const void *data, size_t datalen)
 	{
-		sendto(this->mpGroup->_getSockFd(), data, datalen,
-			   0, (SA *)&this->mSockAddr, sizeof(this->mSockAddr));
+		mUdpSender.send(data, datalen);		
+	}
+
+	// IUdpSender
+	virtual int processSend(const void *data, size_t datalen)
+	{
+		return sendto(mpGroup->getSockFd(), data, datalen, 0,
+					  (SA *)&this->mSockAddr, sizeof(this->mSockAddr));
+	}
+	virtual void regOutputNotification(OutputNotificationHandler *p)
+	{
+		mpGroup->regOutputNotification(p);
+	}
+	virtual void unregOutputNotification(OutputNotificationHandler *p)
+	{
+		mpGroup->unregOutputNotification(p);
 	}
 
   protected:
 	Tunnel(MyTunnelGroup *pGroup)
 			:mpGroup(pGroup)
 			,mAddrSettled(false)
+			,mUdpSender(this)
 	{
 		this->mCache = new MyCache(this, &Tunnel<true>::flush);
 	}
@@ -226,6 +265,7 @@ class Tunnel<true> : public ITunnel
 	sockaddr_in mSockAddr;
 
 	MyCache *mCache;
+	UdpPacketSender mUdpSender;
 };
 
 template <bool IsServer>
@@ -265,7 +305,7 @@ class KcpTunnel : public Tunnel<IsServer>
 
 	void _flushAll();
 	bool _canFlush() const;
-	void flushSndBuf(const void *data, size_t datalen);
+	void flushSndBuf(const void *data, size_t datalen);	
 	
   private:		
 	ikcpcb *mKcpCb;
@@ -282,7 +322,9 @@ class KcpTunnel : public Tunnel<IsServer>
 //--------------------------------------------------------------------------
 // Kcp管道组(最终实现)
 template <bool IsServer>
-class KcpTunnelGroup : public InputNotificationHandler, public TunnelGroup<IsServer>
+class KcpTunnelGroup : public InputNotificationHandler
+					 , public OutputNotificationHandler
+					 , public TunnelGroup<IsServer>
 {
 	typedef TunnelGroup<IsServer> Supper;
 	typedef KcpTunnel<IsServer> Tun;
@@ -290,6 +332,8 @@ class KcpTunnelGroup : public InputNotificationHandler, public TunnelGroup<IsSer
     KcpTunnelGroup(EventPoller *poller)
 			:Supper()
 			,mEventPoller(poller)
+			,mbRegForWrite(false)
+			,mOutputNotifyList()
 			,mTunnels()
 			,mKcpArg(kcpmode::Fast3)
 	{
@@ -307,10 +351,16 @@ class KcpTunnelGroup : public InputNotificationHandler, public TunnelGroup<IsSer
 	virtual ITunnel* createTunnel(uint32 conv);
 	virtual void destroyTunnel(ITunnel *pTunnel);
 
+	virtual void regOutputNotification(OutputNotificationHandler *p);
+	virtual void unregOutputNotification(OutputNotificationHandler *p);
+
 	uint32 update();
 
 	// InputNotificationHandler
 	virtual int handleInputNotification(int fd);
+
+	// OutputNotificationHandler
+	virtual int handleOutputNotification(int fd);
 
 	inline void setKcpMode(const KcpArg &mode)
 	{
@@ -318,9 +368,33 @@ class KcpTunnelGroup : public InputNotificationHandler, public TunnelGroup<IsSer
 	}
 	
   private:
+	void tryRegWriteEvent()
+	{
+		if (!mbRegForWrite)
+		{
+			mbRegForWrite = true;
+			mEventPoller->registerForWrite(this->getSockFd(), this);
+		}
+	}
+
+	void tryUnregWriteEvent()
+	{
+		if (mbRegForWrite)
+		{
+			mbRegForWrite = false;
+			mEventPoller->deregisterForWrite(this->getSockFd());
+		}	
+	}
+	
+  private:
 	typedef std::map<uint32, Tun *> Tunnels;
+	typedef std::set<OutputNotificationHandler *> OutputNotifyList;
 
 	EventPoller *mEventPoller;
+	
+	bool mbRegForWrite;
+	OutputNotifyList mOutputNotifyList;
+	
 	Tunnels mTunnels;
 	KcpArg mKcpArg;	
 };

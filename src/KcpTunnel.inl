@@ -6,7 +6,7 @@ static int kcpOutput(const char *buf, int len, ikcpcb *kcp, void *user)
 	ITunnel *pTunnel = (ITunnel *)user;
 	if (pTunnel)
 	{
-		assert(pTunnel->_output(buf, len) == len && "kcp outputed len illegal");	   		
+		pTunnel->_output(buf, len);
 	}
 	return 0;
 }
@@ -184,6 +184,9 @@ bool KcpTunnelGroup<IsServer>::_create()
 template <bool IsServer>
 void KcpTunnelGroup<IsServer>::shutdown()
 {
+	tryUnregWriteEvent();
+	mOutputNotifyList.clear();
+	
 	typename Tunnels::iterator it = this->mTunnels.begin();
 	for (; it != this->mTunnels.end(); ++it)
 	{
@@ -240,6 +243,27 @@ void KcpTunnelGroup<IsServer>::destroyTunnel(ITunnel *pTunnel)
 }
 
 template <bool IsServer>
+void KcpTunnelGroup<IsServer>::regOutputNotification(OutputNotificationHandler *p)
+{
+	mOutputNotifyList.insert(p);
+	tryRegWriteEvent();
+}
+
+template <bool IsServer>
+void KcpTunnelGroup<IsServer>::unregOutputNotification(OutputNotificationHandler *p)
+{
+	OutputNotifyList::iterator it = mOutputNotifyList.find(p);
+	if (it != mOutputNotifyList.end())
+	{
+		mOutputNotifyList.erase(it);
+		if (mOutputNotifyList.empty())
+		{
+			tryUnregWriteEvent();
+		}
+	}
+}
+
+template <bool IsServer>
 uint32 KcpTunnelGroup<IsServer>::update()
 {
 	// update all tunnels
@@ -289,6 +313,16 @@ int KcpTunnelGroup<IsServer>::handleInputNotification(int fd)
 	}	
 	free(buf);	
 	return 0;
+}
+
+template <bool IsServer>
+int KcpTunnelGroup<IsServer>::handleOutputNotification(int fd)
+{
+	OutputNotifyList::iterator it = mOutputNotifyList.begin();
+	for (; it != mOutputNotifyList.end(); ++it)
+	{
+		(*it)->handleOutputNotification(fd);
+	}
 }
 //--------------------------------------------------------------------------
 

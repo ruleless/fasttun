@@ -42,6 +42,59 @@ typedef struct sockaddr SA;
 
 NAMESPACE_BEG(tun)
 
+//--------------------------------------------------------------------------
+enum EReason
+{
+	Reason_Success = 0,
+	
+	Reason_TimerExpired = -1,
+	Reason_NoSuchPort = -2,
+	Reason_GeneralNetwork = -3,
+	Reason_CorruptedPacket = -4,
+	Reason_NonExistentEntry = -5,
+	Reason_WindowOverflow = -6,
+	Reason_Inactivity = -7,
+	Reason_ResourceUnavailable = -8,
+	Reason_ClientDisconnected = -9,
+	Reason_TransmitQueueFull = -10,
+	Reason_ShuttingDown = -11,
+	Reason_WebSocketError = -12,
+};
+//--------------------------------------------------------------------------
+
+//--------------------------------------------------------------------------
+struct Packet
+{
+    char *buf;
+	size_t buflen;
+
+	Packet() : buf(NULL), buflen(0)
+	{		
+	}
+
+	virtual ~Packet()
+	{
+		if (buf)
+			free(buf);
+	}
+};
+
+struct TcpPacket : public Packet
+{
+    size_t sentlen;
+
+	TcpPacket() : Packet(), sentlen(0)
+	{
+	}
+
+	virtual ~TcpPacket()
+	{
+	}			
+};
+//--------------------------------------------------------------------------
+
+//--------------------------------------------------------------------------
+// ID Generator
 template <class T, int MaxNum>
 class IDGenerator
 {
@@ -72,12 +125,14 @@ class IDGenerator
 
 	IDList mAvailableIds;
 };
+//--------------------------------------------------------------------------
 
+//--------------------------------------------------------------------------
 struct HeartBeatRecord
 {
     uint32 packetSentTime, packetRecvTime;
 
-	static const uint32 HEARTBEAT_INTERVAL = 5000;
+	static const uint32 HEARTBEAT_INTERVAL = 30000;
 	static const uint32 CONNTIMEOUT_TIME = HEARTBEAT_INTERVAL*4;
 	
 	HeartBeatRecord()
@@ -98,6 +153,7 @@ struct HeartBeatRecord
 		return false;
 	}
 };
+//--------------------------------------------------------------------------
 
 extern core::Timers gTimer;
 

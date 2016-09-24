@@ -16,7 +16,7 @@ RM= -rm -rf
 
 
 COMMON_OBJS:= EventPoller.o SelectPoller.o EpollPoller.o Connection.o Listener.o \
-	FastConnection.o FasttunBase.o
+	FastConnection.o FasttunBase.o UdpPacketSender.o
 
 all:client.out server.out test.out utest.out
 
@@ -29,10 +29,10 @@ test.out:$(COMMON_OBJS) test.o
 utest.out:$(COMMON_OBJS) utest.o
 	$(CXX) -o $@ $^ $(LDFLAGS) -lcppunit
 
-client.o: client.cpp EventPoller.h Listener.h Connection.h KcpTunnel.h KcpTunnel.inl FastConnection.h
-server.o: server.cpp EventPoller.h Listener.h Connection.h KcpTunnel.h KcpTunnel.inl FastConnection.h Cache.h
-test.o: test.cpp EventPoller.h Listener.h Connection.h KcpTunnel.h KcpTunnel.inl FastConnection.h Cache.h
-utest.o: utest.cpp EventPoller.h Listener.h Connection.h KcpTunnel.h KcpTunnel.inl FastConnection.h Cache.h \
+client.o: client.cpp EventPoller.h Listener.h Connection.h KcpTunnel.h KcpTunnel.inl UdpPacketSender.h FastConnection.h
+server.o: server.cpp EventPoller.h Listener.h Connection.h KcpTunnel.h KcpTunnel.inl UdpPacketSender.h FastConnection.h Cache.h
+test.o: test.cpp EventPoller.h Listener.h Connection.h KcpTunnel.h KcpTunnel.inl UdpPacketSender.h FastConnection.h Cache.h
+utest.o: utest.cpp EventPoller.h Listener.h Connection.h KcpTunnel.h KcpTunnel.inl UdpPacketSender.h FastConnection.h Cache.h \
 	MessageReceiver.h
 
 FasttunBase.o: FasttunBase.cpp FasttunBase.h
@@ -41,8 +41,9 @@ SelectPoller.o: SelectPoller.cpp SelectPoller.h EventPoller.h FasttunBase.h
 EpollPoller.o: EpollPoller.cpp EpollPoller.h EventPoller.h FasttunBase.h
 Listener.o: Listener.cpp Listener.h EventPoller.h FasttunBase.h
 Connection.o: Connection.cpp Connection.h EventPoller.h FasttunBase.h
-FastConnection.o: FastConnection.cpp FastConnection.h EventPoller.h KcpTunnel.h KcpTunnel.inl Connection.h Cache.h FasttunBase.h \
-	MessageReceiver.h
+FastConnection.o: FastConnection.cpp FastConnection.h EventPoller.h KcpTunnel.h KcpTunnel.inl UdpPacketSender.h Connection.h Cache.h \
+	FasttunBase.h MessageReceiver.h
+UdpPacketSender.o: UdpPacketSender.cpp UdpPacketSender.h EventPoller.h FasttunBase.h
 
 
 install-cli:

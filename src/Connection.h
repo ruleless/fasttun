@@ -37,6 +37,7 @@ class Connection : public InputNotificationHandler, public OutputNotificationHan
 			,mEventPoller(poller)
 			,mbRegForRead(false)
 			,mbRegForWrite(false)
+			,mTcpPacketList()
 	{
 		assert(mEventPoller && "Connection::mEventPoller != NULL");
 	}
@@ -48,8 +49,8 @@ class Connection : public InputNotificationHandler, public OutputNotificationHan
 	bool connect(const SA *sa, socklen_t salen);
 
 	void shutdown();	
-
-	int send(const void *data, size_t datalen);	
+	
+	void send(const void *data, size_t datalen);	
 
 	inline void setEventHandler(Handler *h)
 	{
@@ -69,8 +70,23 @@ class Connection : public InputNotificationHandler, public OutputNotificationHan
 
 	// OutputNotificationHandler
 	virtual int handleOutputNotification(int fd);
+
+  private:
+	void tryRegReadEvent();
+	void tryUnregReadEvent();
+	
+	void tryRegWriteEvent();
+	void tryUnregWriteEvent();	
+	
+	bool tryFlushRemainPacket();
+	void cachePacket(const void *data, size_t datalen);
+
+	bool checkSocketErrors();
+	EReason _checkSocketErrors();	
 	
   private:
+	typedef std::list<TcpPacket *> TcpPacketList;
+	
 	int mFd;
 	EConnStatus mConnStatus;
 	Handler *mHandler; 
@@ -78,6 +94,8 @@ class Connection : public InputNotificationHandler, public OutputNotificationHan
 	EventPoller *mEventPoller;
 	bool mbRegForRead;
 	bool mbRegForWrite;
+
+	TcpPacketList mTcpPacketList;
 };
 
 NAMESPACE_END // namespace tun 
