@@ -175,18 +175,22 @@ int Connection::handleInputNotification(int fd)
 		return 0;
 	}
 	
-	static const int oncelen = 1024;
-	char *buf = (char *)malloc(oncelen);
+	static const int LIMIT_LEN = 65535;
+	static const int MAXLEN = 1024;
+	char *buf = (char *)malloc(MAXLEN);
 	int curlen = 0;
 	for (;;)
 	{
-		int recvlen = recv(mFd, buf+curlen, oncelen, 0);
+		int recvlen = recv(mFd, buf+curlen, MAXLEN, 0);
 		if (recvlen > 0)
 			curlen += recvlen;
 
-		if (recvlen >= oncelen)
+		if (recvlen >= MAXLEN)
 		{
-			buf = (char *)realloc(buf, curlen+oncelen);
+			if (curlen >= LIMIT_LEN)
+				break;
+			
+			buf = (char *)realloc(buf, curlen+MAXLEN);
 		}
 		else
 		{
@@ -204,7 +208,8 @@ int Connection::handleInputNotification(int fd)
 	}
 
 	if (curlen > 0 && mHandler)
-		mHandler->onRecv(this, buf, curlen);	
+		mHandler->onRecv(this, buf, curlen);
+	free(buf);
 
 	if (mHandler)
 	{
@@ -218,8 +223,7 @@ int Connection::handleInputNotification(int fd)
 			shutdown();
 			mHandler->onDisconnected(this);
 		}
-	}
-	free(buf);
+	}	
 
 	return 0;
 }
