@@ -156,9 +156,10 @@ class ClientBridge : public Connection::Handler
 			mCache->flushAll();
 		}
 	}
-	void flush(const void *data, size_t datalen)
+	bool flush(const void *data, size_t datalen)
 	{
 		mpExtConn->send(data, datalen);
+		return true;
 	}
 	
   private:	

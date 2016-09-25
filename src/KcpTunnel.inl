@@ -60,25 +60,25 @@ void KcpTunnel<IsServer>::shutdown()
 template <bool IsServer>
 int KcpTunnel<IsServer>::send(const void *data, size_t datalen)
 {
-	if (this->_canFlush())
+	if (this->_canFlush() &&
+		this->_flushAll() &&
+		this->flushSndBuf(data, datalen))
 	{
-		_flushAll();
-		flushSndBuf(data, datalen);
+		return 0;
 	}
-	else
-	{
-		mSndCache->cache(data, datalen);
-	}	
+	
+	mSndCache->cache(data, datalen);
 	return 0;
 }
 
 template <bool IsServer>
-void KcpTunnel<IsServer>::_flushAll()
+bool KcpTunnel<IsServer>::_flushAll()
 {
 	if (this->_canFlush())
 	{
-		mSndCache->flushAll();
+		return mSndCache->flushAll();
 	}
+	return false;
 }
 
 template <bool IsServer>
@@ -88,8 +88,11 @@ bool KcpTunnel<IsServer>::_canFlush() const
 }
 
 template <bool IsServer>
-void KcpTunnel<IsServer>::flushSndBuf(const void *data, size_t datalen)
+bool KcpTunnel<IsServer>::flushSndBuf(const void *data, size_t datalen)
 {
+	if (!this->_canFlush())
+		return false;
+	
 	const char *ptr = (const char *)data;
 	size_t maxLen = mKcpCb->mss<<5;
 	for (;;)
@@ -108,6 +111,7 @@ void KcpTunnel<IsServer>::flushSndBuf(const void *data, size_t datalen)
 			datalen -= maxLen;
 		}
 	}
+	return true;
 }
 
 template <bool IsServer>

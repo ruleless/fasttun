@@ -203,9 +203,10 @@ class ServerBridge : public Connection::Handler
 			mCache->flushAll();
 		}
 	}
-	void flush(const void *data, size_t len)
+	bool flush(const void *data, size_t len)
 	{
 		mpIntConn->send(data, len);
+		return true;
 	}
 	
   private:	

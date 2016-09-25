@@ -52,7 +52,7 @@ class FastConnection : public Connection::Handler, public KcpTunnelHandler
 
 	int send(const void *data, size_t datalen);
 	void _flushAll();
-	void flush(const void *data, size_t datalen);
+	bool flush(const void *data, size_t datalen);
 
 	void triggerHeartBeatPacket();
 	const HeartBeatRecord& getHeartBeatRecord() const;

@@ -140,9 +140,10 @@ void FastConnection::_flushAll()
 	}
 }
 
-void FastConnection::flush(const void *data, size_t datalen)
+bool FastConnection::flush(const void *data, size_t datalen)
 {
 	mpKcpTunnel->send(data, datalen);
+	return true;
 }
 
 void FastConnection::triggerHeartBeatPacket()

@@ -8,7 +8,7 @@ NAMESPACE_BEG(tun)
 template <class T>
 class Cache
 {
-	typedef void (T::*FuncType)(const void *, size_t);
+	typedef bool (T::*FuncType)(const void *, size_t);
   public:
     Cache(T *host, FuncType func)
 			:mHost(host)
@@ -43,15 +43,22 @@ class Cache
 		this->mCachedList.push_back(d);
 	}
 
-	void flushAll()
+	bool flushAll()
 	{
 		typename DataList::iterator it = this->mCachedList.begin();
 		for (; it != this->mCachedList.end(); ++it)
 		{
-			(mHost->*mFunc)((*it).data, (*it).len);
-			free((*it).data);
+			if ((mHost->*mFunc)((*it).data, (*it).len))
+			{
+				free((*it).data);
+				mCachedList.erase(it++);
+			}
+			else
+			{
+				return false;
+			}
 		}
-		this->mCachedList.clear();
+		return true;
 	}
 	
   private:

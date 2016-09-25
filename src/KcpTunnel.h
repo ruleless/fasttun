@@ -225,9 +225,10 @@ class Tunnel<true> : public ITunnel
 		mAddrSettled = true;
 	}	
 
-	void flush(const void *data, size_t datalen)
+	bool flush(const void *data, size_t datalen)
 	{
-		mUdpSender.send(data, datalen);		
+		mUdpSender.send(data, datalen);
+		return true;
 	}
 
 	// IUdpSender
@@ -303,9 +304,9 @@ class KcpTunnel : public Tunnel<IsServer>
 	bool input(const void *data, size_t datalen);
 	uint32 update(uint32 current);
 
-	void _flushAll();
+	bool _flushAll();
 	bool _canFlush() const;
-	void flushSndBuf(const void *data, size_t datalen);	
+	bool flushSndBuf(const void *data, size_t datalen);	
 	
   private:		
 	ikcpcb *mKcpCb;
