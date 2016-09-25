@@ -7,8 +7,8 @@ CILLDIR:= ../cill
 ROOT:= ..
 
 CFLAGS+= -g -Wall
-# CXXFLAGS+= -D_USE_KMEM -g -Wall -I $(CILLDIR) -I $(CILLDIR)/kmem
-CXXFLAGS+= -g -Wall -I $(CILLDIR) -I $(CILLDIR)/kmem -I $(ROOT)
+CXXFLAGS+= -D_USE_NO_KMEM -g -Wall -I $(CILLDIR) -I $(CILLDIR)/kmem
+# CXXFLAGS+= -g -Wall -I $(CILLDIR) -I $(CILLDIR)/kmem -I $(ROOT)
 
 LDFLAGS+= -L $(CILLDIR)/lib -lcill -lkmem -L $(ROOT)/lib -lkcp -lpthread -lrt -lstdc++
 
