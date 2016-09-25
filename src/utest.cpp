@@ -87,6 +87,11 @@ void UTest::_onRecvMsgError(void *)
 	CPPUNIT_ASSERT(false);
 }
 
+void UTest::testDiskCache()
+{
+	DiskCache c;	
+}
+
 
 int main(int argc, char *argv[])
 {

@@ -82,12 +82,6 @@ bool KcpTunnel<IsServer>::_flushAll()
 }
 
 template <bool IsServer>
-bool KcpTunnel<IsServer>::_canFlush() const
-{
-	return ikcp_waitsnd(mKcpCb) < 2*mKcpCb->snd_wnd;
-}
-
-template <bool IsServer>
 bool KcpTunnel<IsServer>::flushSndBuf(const void *data, size_t datalen)
 {
 	if (!this->_canFlush())
@@ -112,6 +106,12 @@ bool KcpTunnel<IsServer>::flushSndBuf(const void *data, size_t datalen)
 		}
 	}
 	return true;
+}
+
+template <bool IsServer>
+bool KcpTunnel<IsServer>::_canFlush() const
+{
+	return ikcp_waitsnd(mKcpCb) < 2*mKcpCb->snd_wnd;
 }
 
 template <bool IsServer>

@@ -304,9 +304,9 @@ class KcpTunnel : public Tunnel<IsServer>
 	bool input(const void *data, size_t datalen);
 	uint32 update(uint32 current);
 
-	bool _flushAll();
+	bool _flushAll();	
+	bool flushSndBuf(const void *data, size_t datalen);
 	bool _canFlush() const;
-	bool flushSndBuf(const void *data, size_t datalen);	
 	
   private:		
 	ikcpcb *mKcpCb;

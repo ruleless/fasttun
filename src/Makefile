@@ -18,7 +18,7 @@ RM= -rm -rf
 COMMON_OBJS:= EventPoller.o SelectPoller.o EpollPoller.o Connection.o Listener.o \
 	FastConnection.o FasttunBase.o UdpPacketSender.o
 
-all:client.out server.out test.out utest.out
+all:client.out server.out test.out
 
 client.out:$(COMMON_OBJS) client.o
 	$(CXX) -o $@ $^ $(LDFLAGS)

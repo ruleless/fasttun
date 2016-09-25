@@ -207,9 +207,14 @@ int Connection::handleInputNotification(int fd)
 		}
 	}
 
+	if (curlen >= LIMIT_LEN)
+	{
+		logWarningLn("get big data! recvlen="<<curlen);
+	}
+
 	if (curlen > 0 && mHandler)
 		mHandler->onRecv(this, buf, curlen);
-	free(buf);	
+	free(buf);
 
 	if (mHandler)
 	{
