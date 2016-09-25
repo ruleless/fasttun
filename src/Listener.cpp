@@ -87,6 +87,7 @@ int Listener::handleInputNotification(int fd)
 	int newConns = 0;
 	while (newConns++ < 32)
 	{
+		addrlen = sizeof(addr);
 		int connfd = accept(fd, (SA *)&addr, &addrlen);
 		if (connfd < 0)
 		{
