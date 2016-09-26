@@ -158,6 +158,7 @@ struct HeartBeatRecord
 extern core::Timers gTimer;
 
 void daemonize(const char *path);
+void print_stack_frames();
 
 NAMESPACE_END // namespace tun
 

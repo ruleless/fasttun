@@ -7,10 +7,10 @@ CILLDIR:= ../cill
 ROOT:= ..
 
 CFLAGS+= -g -Wall
-CXXFLAGS+= -D_USE_NO_KMEM -g -Wall -I $(CILLDIR) -I $(CILLDIR)/kmem
+CXXFLAGS+= -D_USE_NO_KMEM -rdynamic -g -Wall -I $(CILLDIR) -I $(CILLDIR)/kmem
 # CXXFLAGS+= -g -Wall -I $(CILLDIR) -I $(CILLDIR)/kmem -I $(ROOT)
 
-LDFLAGS+= -L $(CILLDIR)/lib -lcill -lkmem -L $(ROOT)/lib -lkcp -lpthread -lrt -lstdc++
+LDFLAGS+= -rdynamic -L $(CILLDIR)/lib -lcill -lkmem -L $(ROOT)/lib -lkcp -lpthread -lrt -lstdc++
 
 RM= -rm -rf
 
