@@ -42,14 +42,26 @@ void KcpTunnel<IsServer>::shutdown()
 {	
 	if (mKcpCb)
 	{
-		int nsnd_que = mKcpCb->nsnd_que;
-		logInfoLn("close kcp! conv="<<mConv<<
-				  " sentcount="<<mSentCount<<" recvcount="<<mRecvCount<<
-				  " snd_nxt"<<mKcpCb->snd_nxt<<" rcv_nxt="<<mKcpCb->rcv_nxt<<
-				  " peeksize="<<ikcp_peeksize(mKcpCb)<<
-				  " nrcv_que="<<mKcpCb->nrcv_que<<" nsnd_que="<<mKcpCb->nsnd_que<<
-				  " snd_wnd="<<mKcpCb->snd_wnd<<" rmt_wnd"<<mKcpCb->rmt_wnd<<
-				  " snd_una="<<mKcpCb->snd_una<<" cwnd="<<mKcpCb->cwnd);
+		if (mKcpArg->nrcv_buf || mKcpArg->nsnd_que)
+		{
+			logWarningLn("close kcp! conv="<<mConv<<
+						 " sentcount="<<mSentCount<<" recvcount="<<mRecvCount<<
+						 " snd_nxt="<<mKcpCb->snd_nxt<<" rcv_nxt="<<mKcpCb->rcv_nxt<<
+						 " peeksize="<<ikcp_peeksize(mKcpCb)<<
+						 " nrcv_que="<<mKcpCb->nrcv_que<<" nsnd_que="<<mKcpCb->nsnd_que<<
+						 " snd_wnd="<<mKcpCb->snd_wnd<<" rmt_wnd="<<mKcpCb->rmt_wnd<<
+						 " snd_una="<<mKcpCb->snd_una<<" cwnd="<<mKcpCb->cwnd);
+		}
+		else
+		{
+			logInfoLn("close kcp! conv="<<mConv<<
+					  " sentcount="<<mSentCount<<" recvcount="<<mRecvCount<<
+					  " snd_nxt="<<mKcpCb->snd_nxt<<" rcv_nxt="<<mKcpCb->rcv_nxt<<
+					  " peeksize="<<ikcp_peeksize(mKcpCb)<<
+					  " nrcv_que="<<mKcpCb->nrcv_que<<" nsnd_que="<<mKcpCb->nsnd_que<<
+					  " snd_wnd="<<mKcpCb->snd_wnd<<" rmt_wnd="<<mKcpCb->rmt_wnd<<
+					  " snd_una="<<mKcpCb->snd_una<<" cwnd="<<mKcpCb->cwnd);
+		}
 		
 		ikcp_release(mKcpCb);		
 		mKcpCb = NULL;
@@ -88,7 +100,7 @@ bool KcpTunnel<IsServer>::flushSndBuf(const void *data, size_t datalen)
 		return false;
 	
 	const char *ptr = (const char *)data;
-	size_t maxLen = mKcpCb->mss<<5;
+	size_t maxLen = mKcpCb->mss<<4;
 	for (;;)
 	{
 		if (datalen <= maxLen) // in most case
