@@ -42,7 +42,7 @@ void KcpTunnel<IsServer>::shutdown()
 {	
 	if (mKcpCb)
 	{
-		if (mKcpCb->nrcv_buf || mKcpCb->nsnd_que)
+		if (mKcpCb->nrcv_que || mKcpCb->nsnd_que)
 		{
 			logWarningLn("close kcp! conv="<<mConv<<
 						 " sentcount="<<mSentCount<<" recvcount="<<mRecvCount<<
