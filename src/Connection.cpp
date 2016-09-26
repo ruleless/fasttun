@@ -184,9 +184,14 @@ int Connection::handleInputNotification(int fd)
 				break;
 
 			if (buf == mBuffer)
+			{
 				buf = (char *)malloc(curlen+MAXLEN);
-			else				
+				memcpy(buf, mBuffer, curlen);
+			}
+			else
+			{
 				buf = (char *)realloc(buf, curlen+MAXLEN);
+			}
 		}
 		else
 		{
