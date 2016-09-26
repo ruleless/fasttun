@@ -68,14 +68,8 @@ bool Connection::connect(const SA *sa, socklen_t salen)
 		return false;
 	}
 
-	// set nonblocking	
-	int fstatus = fcntl(mFd, F_GETFL);
-	if (fstatus < 0)
-	{
-		logErrorLn("Connection::connect()  get file status error! "<<coreStrError());
-		goto err_1;
-	}
-	if (fcntl(mFd, F_SETFL, fstatus|O_NONBLOCK) < 0)
+	// set nonblocking
+	if (!core::setNonblocking(mFd))
 	{
 		logErrorLn("Connection::connect()  set nonblocking error! "<<coreStrError());
 		goto err_1;
@@ -375,15 +369,14 @@ EReason Connection::_checkSocketErrors()
 
 #ifdef unix
 	err = errno;
+	if (EAGAIN == err || EWOULDBLOCK == err)
+		return Reason_ResourceUnavailable;
 
 	switch (err)
-	{
+	{	
 	case ECONNREFUSED:
 		reason = Reason_NoSuchPort;
-		break;
-	case EAGAIN:
-		reason = Reason_ResourceUnavailable;
-		break;
+		break;	
 	case EPIPE:
 		reason = Reason_ClientDisconnected;
 		break;

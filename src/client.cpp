@@ -158,6 +158,7 @@ class Client : public Listener::Handler, public ClientBridge::Handler
 			,mEventPoller(poller)
 			,mListener(poller)
 			,mBridges()
+			,mShutedBridges()
 	{
 	}
 	
@@ -180,6 +181,8 @@ class Client : public Listener::Handler, public ClientBridge::Handler
 	void finalise()
 	{		
 		mListener.finalise();
+
+		update();
 		BridgeList::iterator it = mBridges.begin();
 		for (; it != mBridges.end(); ++it)
 		{
@@ -191,6 +194,18 @@ class Client : public Listener::Handler, public ClientBridge::Handler
 			}
 		}
 		mBridges.clear();
+	}
+
+	// call it ervery frame
+	void update()
+	{
+		BridgeList::iterator it = mShutedBridges.begin();
+		for (; it != mShutedBridges.end(); ++it)
+		{
+			(*it)->shutdown();
+			delete *it;		
+		}
+		mShutedBridges.clear();
 	}
 
 	virtual void onAccept(int connfd)
@@ -227,8 +242,7 @@ class Client : public Listener::Handler, public ClientBridge::Handler
 			mBridges.erase(it);
 		}
 
-		pBridge->shutdown();
-		delete pBridge;		
+		mShutedBridges.insert(pBridge);
 	}	
 	
   private:
@@ -238,6 +252,7 @@ class Client : public Listener::Handler, public ClientBridge::Handler
 	Listener mListener;
 
 	BridgeList mBridges;
+	BridgeList mShutedBridges;
 };
 //--------------------------------------------------------------------------
 
@@ -417,6 +432,8 @@ int main(int argc, char *argv[])
 		nextTimerCheckInterval = gTimer.nextExp(curClock);
 		if (0 == nextTimerCheckInterval)
 			nextTimerCheckInterval = MAX_WAIT;
+
+		cli.update();
 
 		maxWait  = min(nextKcpUpdateInterval, nextTimerCheckInterval);
 		maxWait *= 0.001f;		
