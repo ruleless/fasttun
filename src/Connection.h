@@ -38,8 +38,12 @@ class Connection : public InputNotificationHandler, public OutputNotificationHan
 			,mbRegForRead(false)
 			,mbRegForWrite(false)
 			,mTcpPacketList()
+			,mBuffer(NULL)
 	{
 		assert(mEventPoller && "Connection::mEventPoller != NULL");
+		
+		mBuffer = (char *)malloc(MAXLEN);
+		assert(mBuffer != NULL && "Connection malloc buffer failed");
 	}
 	
     virtual ~Connection();
@@ -85,6 +89,8 @@ class Connection : public InputNotificationHandler, public OutputNotificationHan
 	EReason _checkSocketErrors();	
 	
   private:
+	static const int MAXLEN = 8*1024;
+	static const int LIMIT_LEN = 1024*1024;	
 	typedef std::list<TcpPacket *> TcpPacketList;
 	
 	int mFd;
@@ -96,6 +102,8 @@ class Connection : public InputNotificationHandler, public OutputNotificationHan
 	bool mbRegForWrite;
 
 	TcpPacketList mTcpPacketList;
+
+	char *mBuffer;
 };
 
 NAMESPACE_END // namespace tun 

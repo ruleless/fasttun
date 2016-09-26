@@ -5,6 +5,7 @@ NAMESPACE_BEG(tun)
 Connection::~Connection()
 {
 	shutdown();
+	free(mBuffer);
 }
 
 bool Connection::acceptConnection(int connfd)
@@ -168,10 +169,8 @@ int Connection::handleInputNotification(int fd)
 		logErrorLn("handleInputNotification() Connection is not connected! fd="<<fd);
 		return 0;
 	}
-	
-	static const int LIMIT_LEN = 65535;
-	static const int MAXLEN = 1024;
-	char *buf = (char *)malloc(MAXLEN);
+		
+	char *buf = mBuffer;
 	int curlen = 0;
 	for (;;)
 	{
@@ -183,8 +182,11 @@ int Connection::handleInputNotification(int fd)
 		{
 			if (curlen >= LIMIT_LEN)
 				break;
-			
-			buf = (char *)realloc(buf, curlen+MAXLEN);
+
+			if (buf == mBuffer)
+				buf = (char *)malloc(curlen+MAXLEN);
+			else				
+				buf = (char *)realloc(buf, curlen+MAXLEN);
 		}
 		else
 		{
@@ -208,7 +210,8 @@ int Connection::handleInputNotification(int fd)
 
 	if (curlen > 0 && mHandler)
 		mHandler->onRecv(this, buf, curlen);
-	free(buf);
+	if (buf != mBuffer)
+		free(buf);
 
 	if (mHandler)
 	{
