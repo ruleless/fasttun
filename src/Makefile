@@ -16,9 +16,11 @@ RM= -rm -rf
 
 
 COMMON_OBJS:= EventPoller.o SelectPoller.o EpollPoller.o Connection.o Listener.o \
-	FastConnection.o FasttunBase.o UdpPacketSender.o
+	FastConnection.o FasttunBase.o UdpPacketSender.o DiskCache.o
 
+.PHONY:all test clean install-cli install-svr fake
 all:client.out server.out test.out
+test:utest.out
 
 client.out:$(COMMON_OBJS) client.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
@@ -33,7 +35,7 @@ client.o: client.cpp EventPoller.h Listener.h Connection.h KcpTunnel.h KcpTunnel
 server.o: server.cpp EventPoller.h Listener.h Connection.h KcpTunnel.h KcpTunnel.inl UdpPacketSender.h FastConnection.h Cache.h
 test.o: test.cpp EventPoller.h Listener.h Connection.h KcpTunnel.h KcpTunnel.inl UdpPacketSender.h FastConnection.h Cache.h
 utest.o: utest.cpp EventPoller.h Listener.h Connection.h KcpTunnel.h KcpTunnel.inl UdpPacketSender.h FastConnection.h Cache.h \
-	MessageReceiver.h
+	MessageReceiver.h DiskCache.h
 
 FasttunBase.o: FasttunBase.cpp FasttunBase.h
 EventPoller.o: EventPoller.cpp EventPoller.h SelectPoller.h EpollPoller.h FasttunBase.h
@@ -44,6 +46,7 @@ Connection.o: Connection.cpp Connection.h EventPoller.h FasttunBase.h
 FastConnection.o: FastConnection.cpp FastConnection.h EventPoller.h KcpTunnel.h KcpTunnel.inl UdpPacketSender.h Connection.h Cache.h \
 	FasttunBase.h MessageReceiver.h
 UdpPacketSender.o: UdpPacketSender.cpp UdpPacketSender.h EventPoller.h FasttunBase.h
+DiskCache.o: DiskCache.cpp DiskCache.h FasttunBase.h
 
 
 install-cli:

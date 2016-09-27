@@ -9,6 +9,8 @@
 
 CPPUNIT_TEST_SUITE_REGISTRATION(UTest);
 
+using namespace tun;
+
 UTest::~UTest()
 {}
 	
@@ -88,8 +90,29 @@ void UTest::_onRecvMsgError(void *)
 }
 
 void UTest::testDiskCache()
-{
-	DiskCache c;	
+{	
+	const char *strs[] = {
+		"test1",
+		"test23",
+		"fkadsfkjsdakfjasdjfkasjrieuwqrnkvnakfhijlkf5a4s5f74asf42asd1fasdf",
+		"jfakdsiofruewiorewnckjdkfjasfjdnafkmnmnkjujwiue9q  k safjkdsajfkmmjjlklk",
+	};
+
+	DiskCache c;
+	for (int i = 0; i < sizeof(strs)/sizeof(const char *); ++i)
+	{
+		c.write(strs[i], strlen(strs[i]));
+	}
+
+	char *ptr = NULL;
+	ssize_t sz = 0;
+	int i = 0;
+	while ((sz = c.peeksize()) > 0)
+	{
+		ptr = (char *)malloc(sz);
+		c.read(ptr, sz);
+		CPPUNIT_ASSERT(memcmp(ptr, strs[i++], sz) == 0);
+	}
 }
 
 
@@ -98,7 +121,7 @@ int main(int argc, char *argv[])
 	core::createTrace();
 	// core::output2Console();
 	core::output2File("utest.log");
-	
+
 	CppUnit::TextUi::TestRunner runner;
 	runner.addTest(CppUnit::TestFactoryRegistry::getRegistry().makeTest());
 	runner.run();
