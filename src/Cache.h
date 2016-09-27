@@ -46,7 +46,7 @@ class Cache
 	bool flushAll()
 	{
 		typename DataList::iterator it = this->mCachedList.begin();
-		for (; it != this->mCachedList.end(); ++it)
+		for (; it != this->mCachedList.end(); )
 		{
 			if ((mHost->*mFunc)((*it).data, (*it).len))
 			{
