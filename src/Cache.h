@@ -6,7 +6,7 @@
 
 NAMESPACE_BEG(tun)
 
-template <class T, int MAX_LEN_CACHE_IN_MEM = 0/* 256*1024 */>
+template <class T, int MAX_LEN_CACHE_IN_MEM = 256*1024>
 class Cache
 {
 	typedef bool (T::*FuncType)(const void *, size_t);
@@ -97,7 +97,6 @@ class Cache
 			else
 			{
 				free(ptr);
-				logWarningLn("rollback sz="<<sz);
 				mDiskCache.rollback(sz);
 				return false;
 			}
