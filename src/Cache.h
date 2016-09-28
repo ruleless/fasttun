@@ -81,7 +81,12 @@ class Cache
 
 		for (ssize_t sz = mDiskCache.peeksize(); sz > 0; sz = mDiskCache.peeksize())
 		{
-			char *ptr = (char *)malloc(sz); assert(ptr != NULL);
+			char *ptr = (char *)malloc(sz);
+			if (NULL == ptr)
+			{
+				logErrorLn("malloc failed size="<<sz);
+				assert(false);
+			}			
 			assert(mDiskCache.read(ptr, sz) == sz);
 
 			if ((mHost->*mFunc)(ptr, sz))
