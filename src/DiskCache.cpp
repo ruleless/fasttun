@@ -62,7 +62,7 @@ size_t DiskCache::peeksize()
 void DiskCache::rollback(size_t n)
 {
 	if (mpFile)
-		fseek(mpFile, -n, SEEK_CUR);
+		fseek(mpFile, -(n+sizeof(size_t)), SEEK_CUR);
 }
 
 bool DiskCache::_createFile()

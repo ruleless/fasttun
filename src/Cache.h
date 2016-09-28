@@ -97,6 +97,7 @@ class Cache
 			else
 			{
 				free(ptr);
+				logWarningLn("rollback sz="<<sz);
 				mDiskCache.rollback(sz);
 				return false;
 			}
