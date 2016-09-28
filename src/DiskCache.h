@@ -18,6 +18,8 @@ class DiskCache
 	ssize_t read(void *data, size_t datalen);
 	size_t peeksize();
 
+	void rollback(size_t n);
+
   private:
 	bool _createFile();
 

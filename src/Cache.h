@@ -2,10 +2,11 @@
 #define __CACHE_H__
 
 #include "FasttunBase.h"
+#include "DiskCache.h"
 
 NAMESPACE_BEG(tun)
 
-template <class T>
+template <class T, int MAX_LEN_CACHE_IN_MEM = 0/* 256*1024 */>
 class Cache
 {
 	typedef bool (T::*FuncType)(const void *, size_t);
@@ -14,6 +15,8 @@ class Cache
 			:mHost(host)
 			,mFunc(func)
 			,mCachedList()
+			,mDiskCache()
+			,mLenCacheInMem(0)
 	{}
 	
     virtual ~Cache()
@@ -28,14 +31,29 @@ class Cache
 
 	bool empty() const
 	{
-		return this->mCachedList.empty();
+		return 0 == mLenCacheInMem && 0 == mLenCacheInFile;
 	}
 
 	void cache(const void *data, size_t len)
 	{
 		assert(len > 0 && "cache() && len>0");
+
+		// cache in file
+		if (mLenCacheInMem+len > MAX_LEN_CACHE_IN_MEM || mLenCacheInFile > 0)
+		{
+			int ret = mDiskCache.write(data, len);
+			if (ret == len)
+			{
+				mLenCacheInFile += len;
+				return;
+			}
+			
+			logErrorLn("Cache::cache() write to file failed! return code:"<<ret);
+		}
 		
+		// cache in mem
 		Data d;
+		mLenCacheInMem += len;
 		d.len = len;
 		d.data = (char *)malloc(len);
 		assert(d.data != NULL && "cache() malloc failed");
@@ -50,6 +68,7 @@ class Cache
 		{
 			if ((mHost->*mFunc)((*it).data, (*it).len))
 			{
+				mLenCacheInMem -= (*it).len;
 				free((*it).data);
 				mCachedList.erase(it++);
 			}
@@ -58,6 +77,25 @@ class Cache
 				return false;
 			}
 		}
+
+		for (ssize_t sz = mDiskCache.peeksize(); sz > 0; sz = mDiskCache.peeksize())
+		{
+			char *ptr = (char *)malloc(sz); assert(ptr != NULL);
+			assert(mDiskCache.read(ptr, sz) == sz);
+
+			if ((mHost->*mFunc)(ptr, sz))
+			{
+				mLenCacheInFile -= sz;
+				free(ptr);
+			}
+			else
+			{
+				free(ptr);
+				mDiskCache.rollback(sz);
+				return false;
+			}
+		}
+		
 		return true;
 	}
 	
@@ -72,7 +110,10 @@ class Cache
 
 	T *mHost;
 	FuncType mFunc;
-	DataList mCachedList;	
+	DataList mCachedList;
+	DiskCache mDiskCache;
+	size_t mLenCacheInMem;
+	size_t mLenCacheInFile;
 };
 
 NAMESPACE_END // namespace tun
