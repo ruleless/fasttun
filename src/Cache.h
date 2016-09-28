@@ -17,6 +17,7 @@ class Cache
 			,mCachedList()
 			,mDiskCache()
 			,mLenCacheInMem(0)
+			,mLenCacheInFile(0)
 	{}
 	
     virtual ~Cache()
