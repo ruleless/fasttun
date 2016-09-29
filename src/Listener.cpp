@@ -36,6 +36,14 @@ bool Listener::create(const SA *sa, socklen_t salen)
 		return false;
 	}
 
+	int opt = 1;
+	setsockopt(mFd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+
+#ifdef SO_REUSEPORT
+	opt = 1;
+    setsockopt(mFd, SOL_SOCKET, SO_REUSEPORT, (const char*)&opt, sizeof(opt));
+#endif
+
 	// set nonblocking	
 	if (!core::setNonblocking(mFd))
 	{
