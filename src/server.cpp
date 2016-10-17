@@ -440,7 +440,7 @@ int main(int argc, char *argv[])
 	{
 		Ini ini(confPath);
 		static std::string s_listenAddr = ini.getString("server", "listen", "");
-		static std::string s_kcpListenAddr = ini.getString("server", "kcp_listen", s_listenAddr.c_str());
+		static std::string s_kcpListenAddr = ini.getString("server", "kcplisten", s_listenAddr.c_str());
 		static std::string s_connectAddr = ini.getString("server", "connect", "");
 		if (s_listenAddr != "")
 			listenAddr = s_listenAddr.c_str();

@@ -364,7 +364,7 @@ int main(int argc, char *argv[])
 		Ini ini(confPath);
 		static std::string s_listenAddr = ini.getString("local", "listen", "");
 		static std::string s_remoteAddr = ini.getString("local", "remote", "");
-		static std::string s_kcpRemoteAddr = ini.getString("local", "kcp_remote", s_remoteAddr.c_str());
+		static std::string s_kcpRemoteAddr = ini.getString("local", "kcpremote", s_remoteAddr.c_str());
 		if (s_listenAddr != "")
 			listenAddr = s_listenAddr.c_str();
 		if (s_remoteAddr != "")
