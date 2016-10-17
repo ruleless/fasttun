@@ -12,7 +12,7 @@ core::Timers tun::gTimer;
 typedef KcpTunnelGroup<true> MyTunnelGroup;
 static MyTunnelGroup *gTunnelManager = NULL;
 
-static sockaddr_in ListenAddr;
+static sockaddr_in ListenAddr, KcpListenAddr;
 static sockaddr_in ConnectAddr;
 
 //--------------------------------------------------------------------------
@@ -380,6 +380,7 @@ int main(int argc, char *argv[])
 	bool bVerbose = false;
 	const char *confPath = NULL;
 	const char *listenAddr = NULL;
+	const char *kcpListenAddr = NULL;
 	const char *connectAddr = NULL;
 	const char *pidPath = NULL;
 	
@@ -393,6 +394,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'l':
 			listenAddr = optarg;
+			break;
+		case 'u':
+			kcpListenAddr = optarg;
 			break;
 		case 'r':
 			connectAddr = optarg;
@@ -436,20 +440,25 @@ int main(int argc, char *argv[])
 	{
 		Ini ini(confPath);
 		static std::string s_listenAddr = ini.getString("server", "listen", "");
+		static std::string s_kcpListenAddr = ini.getString("server", "kcp_listen", s_listenAddr.c_str());
 		static std::string s_connectAddr = ini.getString("server", "connect", "");
 		if (s_listenAddr != "")
 			listenAddr = s_listenAddr.c_str();
 		if (s_connectAddr != "")
 			connectAddr = s_connectAddr.c_str();
+		if (s_kcpListenAddr != "")
+			kcpListenAddr = s_kcpListenAddr.c_str();
 	}
 
-	if (NULL == listenAddr || NULL == connectAddr)
+	if (NULL == listenAddr || NULL == connectAddr || NULL == kcpListenAddr)
 	{
 		fprintf(stderr, "no argument assigned or parse argument failed!\n");
 		core::closeTrace();
 		exit(EXIT_FAILURE);
 	}
-	if (!core::str2Ipv4(listenAddr, ListenAddr) || !core::str2Ipv4(connectAddr, ConnectAddr))
+	if (!core::str2Ipv4(listenAddr, ListenAddr) ||
+		!core::str2Ipv4(connectAddr, ConnectAddr) ||
+		!core::str2Ipv4(kcpListenAddr, KcpListenAddr))
 	{
 		logErrorLn("invalid socket address!");
 		core::closeTrace();
@@ -461,7 +470,7 @@ int main(int argc, char *argv[])
 
 	// kcp tunnel manager
 	gTunnelManager = new MyTunnelGroup(netPoller);
-	if (!gTunnelManager->create((const SA *)&ListenAddr, sizeof(ListenAddr)))
+	if (!gTunnelManager->create((const SA *)&KcpListenAddr, sizeof(KcpListenAddr)))
 	{
 		logErrorLn("initialise Tunnel Manager error!");
 		delete netPoller;

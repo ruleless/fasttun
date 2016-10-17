@@ -13,6 +13,7 @@ static MyTunnelGroup *gTunnelManager = NULL;
 
 static sockaddr_in ListenAddr;
 static sockaddr_in RemoteAddr;
+static sockaddr_in KcpRemoteAddr;
 
 //--------------------------------------------------------------------------
 class ClientBridge : public Connection::Handler, public FastConnection::Handler
@@ -303,6 +304,7 @@ int main(int argc, char *argv[])
 	const char *confPath = NULL;
 	const char *listenAddr = NULL;
 	const char *remoteAddr = NULL;
+	const char *kcpRemoteAddr = NULL;
 	const char *pidPath = NULL;
 	
 	int opt = 0;
@@ -318,6 +320,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'r':
 			remoteAddr = optarg;
+			break;
+		case 'u':
+			kcpRemoteAddr = optarg;
 			break;
 		case 'f':
 			pidFlags = 1;
@@ -359,19 +364,24 @@ int main(int argc, char *argv[])
 		Ini ini(confPath);
 		static std::string s_listenAddr = ini.getString("local", "listen", "");
 		static std::string s_remoteAddr = ini.getString("local", "remote", "");
+		static std::string s_kcpRemoteAddr = ini.getString("local", "kcp_remote", s_remoteAddr.c_str());
 		if (s_listenAddr != "")
 			listenAddr = s_listenAddr.c_str();
 		if (s_remoteAddr != "")
 			remoteAddr = s_remoteAddr.c_str();
+		if (s_kcpRemoteAddr != "")
+			kcpRemoteAddr = s_kcpRemoteAddr.c_str();
 	}
 	
-	if (NULL == listenAddr || NULL == remoteAddr)
+	if (NULL == listenAddr || NULL == remoteAddr || NULL == kcpRemoteAddr)
 	{
 		fprintf(stderr, "no argument assigned or parse argument failed!\n");
 		core::closeTrace();
 		exit(EXIT_FAILURE);
 	}
-	if (!core::str2Ipv4(listenAddr, ListenAddr) || !core::str2Ipv4(remoteAddr, RemoteAddr))
+	if (!core::str2Ipv4(listenAddr, ListenAddr) ||
+		!core::str2Ipv4(remoteAddr, RemoteAddr) ||
+		!core::str2Ipv4(kcpRemoteAddr, KcpRemoteAddr))
 	{
 		logErrorLn("invalid socket address!");
 		core::closeTrace();
@@ -383,7 +393,7 @@ int main(int argc, char *argv[])
 
 	// kcp tunnel manager
 	gTunnelManager = new MyTunnelGroup(netPoller);
-	if (!gTunnelManager->create(remoteAddr))
+	if (!gTunnelManager->create(kcpRemoteAddr))
 	{
 		logErrorLn("initialise Tunnel Manager error!");
 		delete netPoller;
