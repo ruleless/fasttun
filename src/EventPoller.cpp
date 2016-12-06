@@ -5,9 +5,9 @@
 NAMESPACE_BEG(tun)
 
 EventPoller::EventPoller()
-		:mSpareTime(0)
-		,mFdReadHandlers()
-		,mFdWriteHandlers()
+        :mSpareTime(0)
+        ,mFdReadHandlers()
+        ,mFdWriteHandlers()
 {
 }
 
@@ -17,148 +17,148 @@ EventPoller::~EventPoller()
 
 bool EventPoller::registerForRead(int fd, InputNotificationHandler *handler)
 {
-	if (!this->doRegisterForRead(fd))
-	{
-		return false;
-	}
+    if (!this->doRegisterForRead(fd))
+    {
+        return false;
+    }
 
-	mFdReadHandlers[fd] = handler;
+    mFdReadHandlers[fd] = handler;
 
-	return true;
+    return true;
 }
 
 bool EventPoller::registerForWrite(int fd, OutputNotificationHandler *handler)
 {
-	if (!this->doRegisterForWrite(fd))
-	{
-		return false;
-	}
+    if (!this->doRegisterForWrite(fd))
+    {
+        return false;
+    }
 
-	mFdWriteHandlers[fd] = handler;
+    mFdWriteHandlers[fd] = handler;
 
-	return true;
+    return true;
 }
 
 bool EventPoller::deregisterForRead(int fd)
 {
-	mFdReadHandlers.erase(fd);
+    mFdReadHandlers.erase(fd);
 
-	return this->doDeregisterForRead(fd);
+    return this->doDeregisterForRead(fd);
 }
 
 bool EventPoller::deregisterForWrite(int fd)
 {
-	mFdWriteHandlers.erase(fd);
+    mFdWriteHandlers.erase(fd);
 
-	return this->doDeregisterForWrite(fd);
+    return this->doDeregisterForWrite(fd);
 }
 
-bool EventPoller::triggerRead(int fd)	
+bool EventPoller::triggerRead(int fd)   
 {
-	FDReadHandlers::iterator iter = mFdReadHandlers.find(fd);
+    FDReadHandlers::iterator iter = mFdReadHandlers.find(fd);
 
-	if (iter == mFdReadHandlers.end())
-	{
-		return false;
-	}
+    if (iter == mFdReadHandlers.end())
+    {
+        return false;
+    }
 
-	iter->second->handleInputNotification(fd);
+    iter->second->handleInputNotification(fd);
 
-	return true;
+    return true;
 }
 
-bool EventPoller::triggerWrite(int fd)	
+bool EventPoller::triggerWrite(int fd)  
 {
-	FDWriteHandlers::iterator iter = mFdWriteHandlers.find(fd);
+    FDWriteHandlers::iterator iter = mFdWriteHandlers.find(fd);
 
-	if (iter == mFdWriteHandlers.end())
-	{
-		return false;
-	}
+    if (iter == mFdWriteHandlers.end())
+    {
+        return false;
+    }
 
-	iter->second->handleOutputNotification(fd);
+    iter->second->handleOutputNotification(fd);
 
-	return true;
+    return true;
 }
 
 bool EventPoller::triggerError(int fd)
 {
-	if (!this->triggerRead(fd))
-	{
-		return this->triggerWrite(fd);
-	}
+    if (!this->triggerRead(fd))
+    {
+        return this->triggerWrite(fd);
+    }
 
-	return true;
+    return true;
 }
 
 bool EventPoller::isRegistered(int fd, bool isForRead) const
 {
-	return isForRead ? (mFdReadHandlers.find(fd) != mFdReadHandlers.end()) : 
-			(mFdWriteHandlers.find(fd) != mFdWriteHandlers.end());
+    return isForRead ? (mFdReadHandlers.find(fd) != mFdReadHandlers.end()) : 
+            (mFdWriteHandlers.find(fd) != mFdWriteHandlers.end());
 }
 
 int EventPoller::getFileDescriptor() const
 {
-	return -1;
+    return -1;
 }
 
 InputNotificationHandler* EventPoller::findForRead(int fd)
 {
-	FDReadHandlers::iterator iter = mFdReadHandlers.find(fd);
-	
-	if(iter == mFdReadHandlers.end())
-		return NULL;
+    FDReadHandlers::iterator iter = mFdReadHandlers.find(fd);
+    
+    if(iter == mFdReadHandlers.end())
+        return NULL;
 
-	return iter->second;
+    return iter->second;
 }
 
 OutputNotificationHandler* EventPoller::findForWrite(int fd)
 {
-	FDWriteHandlers::iterator iter = mFdWriteHandlers.find(fd);
-	
-	if(iter == mFdWriteHandlers.end())
-		return NULL;
+    FDWriteHandlers::iterator iter = mFdWriteHandlers.find(fd);
+    
+    if(iter == mFdWriteHandlers.end())
+        return NULL;
 
-	return iter->second;
+    return iter->second;
 }
 
 int EventPoller::recalcMaxFD() const
 {
-	int readMaxFD = -1;
+    int readMaxFD = -1;
 
-	FDReadHandlers::const_iterator readHandlerIter = mFdReadHandlers.begin();
-	while (readHandlerIter != mFdReadHandlers.end())
-	{
-		if (readHandlerIter->first > readMaxFD)
-		{
-			readMaxFD = readHandlerIter->first;
-		}
+    FDReadHandlers::const_iterator readHandlerIter = mFdReadHandlers.begin();
+    while (readHandlerIter != mFdReadHandlers.end())
+    {
+        if (readHandlerIter->first > readMaxFD)
+        {
+            readMaxFD = readHandlerIter->first;
+        }
 
-		++readHandlerIter;
-	}
+        ++readHandlerIter;
+    }
 
-	int writeMaxFD = -1;
+    int writeMaxFD = -1;
 
-	FDWriteHandlers::const_iterator writeHanderIter = mFdWriteHandlers.begin();
-	while (writeHanderIter != mFdWriteHandlers.end())
-	{
-		if (writeHanderIter->first > writeMaxFD)
-		{
-			writeMaxFD = writeHanderIter->first;
-		}
+    FDWriteHandlers::const_iterator writeHanderIter = mFdWriteHandlers.begin();
+    while (writeHanderIter != mFdWriteHandlers.end())
+    {
+        if (writeHanderIter->first > writeMaxFD)
+        {
+            writeMaxFD = writeHanderIter->first;
+        }
 
-		++writeHanderIter;
-	}
+        ++writeHanderIter;
+    }
 
-	return max(readMaxFD, writeMaxFD);
+    return max(readMaxFD, writeMaxFD);
 }
 
 EventPoller *EventPoller::create()
 {
 #ifdef HAS_EPOLL
-	return new EpollPoller();
+    return new EpollPoller();
 #else
-	return new SelectPoller();
+    return new SelectPoller();
 #endif
 }
 

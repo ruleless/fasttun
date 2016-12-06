@@ -20,7 +20,7 @@ void daemonize(const char *path)
     if (pid > 0) {
         FILE *file = fopen(path, "w");
         if (file == NULL) {
-			exit(EXIT_FAILURE);
+            exit(EXIT_FAILURE);
         }
 
         fprintf(file, "%d", (int)pid);
@@ -52,7 +52,7 @@ void daemonize(const char *path)
 
 void print_stack_frames() {
     int j, nptrs;
-	
+    
 #define SIZE 100
     void *buffer[100];
     char **strings;

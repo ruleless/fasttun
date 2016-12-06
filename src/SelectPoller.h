@@ -8,23 +8,23 @@ NAMESPACE_BEG(tun)
 class SelectPoller : public EventPoller
 {
   public:
-	SelectPoller();
+    SelectPoller();
   protected:
-	virtual bool doRegisterForRead(int fd);
-	virtual bool doRegisterForWrite(int fd);
+    virtual bool doRegisterForRead(int fd);
+    virtual bool doRegisterForWrite(int fd);
 
-	virtual bool doDeregisterForRead(int fd);
-	virtual bool doDeregisterForWrite(int fd);
+    virtual bool doDeregisterForRead(int fd);
+    virtual bool doDeregisterForWrite(int fd);
 
-	virtual int processPendingEvents(double maxWait);
+    virtual int processPendingEvents(double maxWait);
   private:
-	void handleNotifications(int &countReady, fd_set &readFDs, fd_set &writeFDs);
+    void handleNotifications(int &countReady, fd_set &readFDs, fd_set &writeFDs);
 
-	fd_set mFdReadSet;
-	fd_set mFdWriteSet;
+    fd_set mFdReadSet;
+    fd_set mFdWriteSet;
 
-	int	mMaxFd;
-	int	mFdWriteCount;
+    int mMaxFd;
+    int mFdWriteCount;
 };
 
 NAMESPACE_END // namespace tun

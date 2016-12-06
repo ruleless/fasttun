@@ -10,39 +10,39 @@ NAMESPACE_BEG(tun)
 class EpollPoller : public EventPoller
 {
   public:
-	EpollPoller(int expectedSize = 20);
-	virtual ~EpollPoller();
+    EpollPoller(int expectedSize = 20);
+    virtual ~EpollPoller();
 
-	virtual int getFileDescriptor() const
-	{
-		return mEpfd;
-	}
+    virtual int getFileDescriptor() const
+    {
+        return mEpfd;
+    }
   protected:
-	virtual bool doRegisterForRead(int fd)
-	{
-		return this->doRegister(fd, true, true);
-	}
+    virtual bool doRegisterForRead(int fd)
+    {
+        return this->doRegister(fd, true, true);
+    }
 
-	virtual bool doRegisterForWrite(int fd)
-	{
-		return this->doRegister(fd, false, true);
-	}
+    virtual bool doRegisterForWrite(int fd)
+    {
+        return this->doRegister(fd, false, true);
+    }
 
-	virtual bool doDeregisterForRead(int fd)
-	{
-		return this->doRegister(fd, true, false);
-	}
+    virtual bool doDeregisterForRead(int fd)
+    {
+        return this->doRegister(fd, true, false);
+    }
 
-	virtual bool doDeregisterForWrite(int fd)
-	{
-		return this->doRegister(fd, false, false);
-	}
+    virtual bool doDeregisterForWrite(int fd)
+    {
+        return this->doRegister(fd, false, false);
+    }
 
-	virtual int processPendingEvents(double maxWait);
+    virtual int processPendingEvents(double maxWait);
 
-	bool doRegister(int fd, bool isRead, bool isRegister);
+    bool doRegister(int fd, bool isRead, bool isRegister);
   private:
-	int mEpfd;
+    int mEpfd;
 };
 
 NAMESPACE_END // namespace tun

@@ -10,25 +10,25 @@
 
 class UTest : public CppUnit::TestFixture
 {
-	CPPUNIT_TEST_SUITE(UTest);
-	CPPUNIT_TEST(testMessageReceiver);
-	CPPUNIT_TEST(testDiskCache);
-	CPPUNIT_TEST_SUITE_END();
+    CPPUNIT_TEST_SUITE(UTest);
+    CPPUNIT_TEST(testMessageReceiver);
+    CPPUNIT_TEST(testDiskCache);
+    CPPUNIT_TEST_SUITE_END();
   public:
     UTest()
-	{}
-	
+    {}
+    
     virtual ~UTest();
-	
-	virtual void setUp();
-	
-	virtual void tearDown();
+    
+    virtual void setUp();
+    
+    virtual void tearDown();
 
-	void testMessageReceiver();	
-	void _onRecvMessage(const void *data, uint16 datalen, void*);
-	void _onRecvMsgError(void *);
+    void testMessageReceiver(); 
+    void _onRecvMessage(const void *data, uint16 datalen, void*);
+    void _onRecvMsgError(void *);
 
-	void testDiskCache();
+    void testDiskCache();
 };
 
 #endif // __UTEST_H__

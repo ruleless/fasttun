@@ -45,20 +45,20 @@ NAMESPACE_BEG(tun)
 //--------------------------------------------------------------------------
 enum EReason
 {
-	Reason_Success = 0,
-	
-	Reason_TimerExpired = -1,
-	Reason_NoSuchPort = -2,
-	Reason_GeneralNetwork = -3,
-	Reason_CorruptedPacket = -4,
-	Reason_NonExistentEntry = -5,
-	Reason_WindowOverflow = -6,
-	Reason_Inactivity = -7,
-	Reason_ResourceUnavailable = -8,
-	Reason_ClientDisconnected = -9,
-	Reason_TransmitQueueFull = -10,
-	Reason_ShuttingDown = -11,
-	Reason_WebSocketError = -12,
+    Reason_Success = 0,
+    
+    Reason_TimerExpired = -1,
+    Reason_NoSuchPort = -2,
+    Reason_GeneralNetwork = -3,
+    Reason_CorruptedPacket = -4,
+    Reason_NonExistentEntry = -5,
+    Reason_WindowOverflow = -6,
+    Reason_Inactivity = -7,
+    Reason_ResourceUnavailable = -8,
+    Reason_ClientDisconnected = -9,
+    Reason_TransmitQueueFull = -10,
+    Reason_ShuttingDown = -11,
+    Reason_WebSocketError = -12,
 };
 //--------------------------------------------------------------------------
 
@@ -66,30 +66,30 @@ enum EReason
 struct Packet
 {
     char *buf;
-	size_t buflen;
+    size_t buflen;
 
-	Packet() : buf(NULL), buflen(0)
-	{		
-	}
+    Packet() : buf(NULL), buflen(0)
+    {       
+    }
 
-	virtual ~Packet()
-	{
-		if (buf)
-			free(buf);
-	}
+    virtual ~Packet()
+    {
+        if (buf)
+            free(buf);
+    }
 };
 
 struct TcpPacket : public Packet
 {
     size_t sentlen;
 
-	TcpPacket() : Packet(), sentlen(0)
-	{
-	}
+    TcpPacket() : Packet(), sentlen(0)
+    {
+    }
 
-	virtual ~TcpPacket()
-	{
-	}			
+    virtual ~TcpPacket()
+    {
+    }           
 };
 //--------------------------------------------------------------------------
 
@@ -99,31 +99,31 @@ template <class T, int MaxNum>
 class IDGenerator
 {
   public:
-	bool genNewId(T& r)
-	{
-		if (mAvailableIds.empty())
-		{
-			return false;
-		}
+    bool genNewId(T& r)
+    {
+        if (mAvailableIds.empty())
+        {
+            return false;
+        }
 
-		r = mAvailableIds.front();
-		mAvailableIds.pop_front();
-		return true;
-	}
+        r = mAvailableIds.front();
+        mAvailableIds.pop_front();
+        return true;
+    }
 
-	void restorId(const T &r)
-	{
-		mAvailableIds.push_back(r);
-	}
+    void restorId(const T &r)
+    {
+        mAvailableIds.push_back(r);
+    }
 
   protected:
-	IDGenerator() {}	
+    IDGenerator() {}    
     virtual ~IDGenerator() {}
-	
+    
   protected:
-	typedef std::list<T> IDList;
+    typedef std::list<T> IDList;
 
-	IDList mAvailableIds;
+    IDList mAvailableIds;
 };
 //--------------------------------------------------------------------------
 
@@ -132,26 +132,26 @@ struct HeartBeatRecord
 {
     uint32 packetSentTime, packetRecvTime;
 
-	static const uint32 HEARTBEAT_INTERVAL = 30000;
-	static const uint32 CONNTIMEOUT_TIME = HEARTBEAT_INTERVAL*4;
-	
-	HeartBeatRecord()
-			:packetSentTime(0)
-			,packetRecvTime(0)
-	{}
+    static const uint32 HEARTBEAT_INTERVAL = 30000;
+    static const uint32 CONNTIMEOUT_TIME = HEARTBEAT_INTERVAL*4;
+    
+    HeartBeatRecord()
+            :packetSentTime(0)
+            ,packetRecvTime(0)
+    {}
 
-	bool isTimeout() const
-	{
-		uint32 curClock = core::getClock();
-		if (curClock >= packetSentTime &&
-			curClock >= packetRecvTime &&
-			curClock-packetSentTime <= HEARTBEAT_INTERVAL*2 &&			 
-			packetRecvTime > 0 && curClock-packetRecvTime >= CONNTIMEOUT_TIME)
-		{
-			return true;
-		}
-		return false;
-	}
+    bool isTimeout() const
+    {
+        uint32 curClock = core::getClock();
+        if (curClock >= packetSentTime &&
+            curClock >= packetRecvTime &&
+            curClock-packetSentTime <= HEARTBEAT_INTERVAL*2 &&           
+            packetRecvTime > 0 && curClock-packetRecvTime >= CONNTIMEOUT_TIME)
+        {
+            return true;
+        }
+        return false;
+    }
 };
 //--------------------------------------------------------------------------
 

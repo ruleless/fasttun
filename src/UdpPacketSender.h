@@ -9,40 +9,40 @@ NAMESPACE_BEG(tun)
 struct IUdpSender
 {
     virtual int processSend(const void *data, size_t datalen) = 0;
-	virtual void regOutputNotification(OutputNotificationHandler *p) = 0;
-	virtual void unregOutputNotification(OutputNotificationHandler *p) = 0;
+    virtual void regOutputNotification(OutputNotificationHandler *p) = 0;
+    virtual void unregOutputNotification(OutputNotificationHandler *p) = 0;
 };
 
 class UdpPacketSender : public OutputNotificationHandler
 {
   public:
     UdpPacketSender(IUdpSender *pSender)
-			:mpSender(pSender)
-			,mbRegForWrite(false)
-			,mPacketList()
-	{}
-	
+            :mpSender(pSender)
+            ,mbRegForWrite(false)
+            ,mPacketList()
+    {}
+    
     virtual ~UdpPacketSender();
 
-	void send(const void *data, size_t datalen);
+    void send(const void *data, size_t datalen);
 
-	// OutputNotificationHandler
-	virtual int handleOutputNotification(int fd);
+    // OutputNotificationHandler
+    virtual int handleOutputNotification(int fd);
 
   private:
-	void tryRegWriteEvent();
-	void tryUnregWriteEvent();
+    void tryRegWriteEvent();
+    void tryUnregWriteEvent();
 
-	bool tryFlushRemainPacket();
-	void cachePacket(const void *data, size_t datalen);
-	
+    bool tryFlushRemainPacket();
+    void cachePacket(const void *data, size_t datalen);
+    
   private:
-	typedef std::list<Packet *> PacketList;
+    typedef std::list<Packet *> PacketList;
 
-	IUdpSender *mpSender;	
-	
-	bool mbRegForWrite;
-	PacketList mPacketList;
+    IUdpSender *mpSender;   
+    
+    bool mbRegForWrite;
+    PacketList mPacketList;
 };
 
 NAMESPACE_END // namespace tun

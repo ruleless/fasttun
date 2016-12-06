@@ -9,22 +9,22 @@ class DiskCache
 {
   public:
     DiskCache()
-			:mpFile(NULL)
-	{}
-	
+            :mpFile(NULL)
+    {}
+    
     virtual ~DiskCache();
 
-	ssize_t write(const void *data, size_t datalen);
-	ssize_t read(void *data, size_t datalen);
-	size_t peeksize();
+    ssize_t write(const void *data, size_t datalen);
+    ssize_t read(void *data, size_t datalen);
+    size_t peeksize();
 
-	void rollback(size_t n);
-
-  private:
-	bool _createFile();
+    void rollback(size_t n);
 
   private:
-	FILE *mpFile;
+    bool _createFile();
+
+  private:
+    FILE *mpFile;
 };
 
 NAMESPACE_END // namespace tun
