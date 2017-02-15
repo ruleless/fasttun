@@ -17,6 +17,7 @@ conf:
 	echo "[local]" > /etc/fast-tun.ini
 	echo "listen=127.0.0.1:5085" >> /etc/fast-tun.ini
 	echo "remote=127.0.0.1:29905" >> /etc/fast-tun.ini
+	echo "kcpremote=127.0.0.1:29905" >> /etc/fast-tun.ini
 	echo "" >> /etc/fast-tun.ini
 	echo "[server]" >> /etc/fast-tun.ini
 	echo "listen=127.0.0.1:29905" >> /etc/fast-tun.ini
