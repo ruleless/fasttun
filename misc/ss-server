@@ -43,7 +43,7 @@ fi
 
 # Path to the lock file.
 #
-LOCK_FILE=/var/lock/subsys/sscd
+LOCK_FILE=/var/lock/subsys/$NAME
 
 # Path to the pid file.
 #
