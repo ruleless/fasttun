@@ -3,7 +3,7 @@ dirs+= kcp
 dirs+= src
 CONF_CONTENT = ""
 
-include build.mak
+include cill/build.mak
 
 install-cli:
 	$(MAKE) -C src install-cli

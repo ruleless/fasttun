@@ -33,7 +33,7 @@ bool KcpTunnel<IsServer>::create(uint32 conv, const KcpArg &arg)
     ikcp_nodelay(mKcpCb, arg.nodelay, arg.interval, arg.resend, arg.nc);
     ikcp_setmtu(mKcpCb, arg.mtu);
     mSentCount = mRecvCount = 0;
-    logInfoLn("create kcp! conv="<<conv);
+    DebugPrint("create kcp! conv=%u", conv);
     return true;
 }
 
@@ -44,23 +44,37 @@ void KcpTunnel<IsServer>::shutdown()
     {
         if (mKcpCb->nrcv_que || mKcpCb->nsnd_que)
         {
-            logWarningLn("close kcp! conv="<<mConv<<
-                         " sentcount="<<mSentCount<<" recvcount="<<mRecvCount<<
-                         " snd_nxt="<<mKcpCb->snd_nxt<<" rcv_nxt="<<mKcpCb->rcv_nxt<<
-                         " peeksize="<<ikcp_peeksize(mKcpCb)<<
-                         " nrcv_que="<<mKcpCb->nrcv_que<<" nsnd_que="<<mKcpCb->nsnd_que<<
-                         " snd_wnd="<<mKcpCb->snd_wnd<<" rmt_wnd="<<mKcpCb->rmt_wnd<<
-                         " snd_una="<<mKcpCb->snd_una<<" cwnd="<<mKcpCb->cwnd);
+            WarningPrint("close kcp! conv=%u"
+                         " sentcount=%d recvcount=%d"
+                         " snd_nxt=%u rcv_nxt=%u"
+                         " peeksize=%d"
+                         " nrcv_que=%u nsnd_que=%u"
+                         " snd_wnd=%u rmt_wnd=%u"
+                         " snd_una=%u cwnd=%u",
+                         mConv,
+                         mSentCount, mRecvCount,
+                         mKcpCb->snd_nxt, mKcpCb->rcv_nxt,
+                         ikcp_peeksize(mKcpCb),
+                         mKcpCb->nrcv_que, mKcpCb->nsnd_que,
+                         mKcpCb->snd_wnd, mKcpCb->rmt_wnd,
+                         mKcpCb->snd_una, mKcpCb->cwnd);
         }
         else
         {
-            logInfoLn("close kcp! conv="<<mConv<<
-                      " sentcount="<<mSentCount<<" recvcount="<<mRecvCount<<
-                      " snd_nxt="<<mKcpCb->snd_nxt<<" rcv_nxt="<<mKcpCb->rcv_nxt<<
-                      " peeksize="<<ikcp_peeksize(mKcpCb)<<
-                      " nrcv_que="<<mKcpCb->nrcv_que<<" nsnd_que="<<mKcpCb->nsnd_que<<
-                      " snd_wnd="<<mKcpCb->snd_wnd<<" rmt_wnd="<<mKcpCb->rmt_wnd<<
-                      " snd_una="<<mKcpCb->snd_una<<" cwnd="<<mKcpCb->cwnd);
+            DebugPrint("close kcp! conv=%u"
+                       " sentcount=%d recvcount=%d"
+                       " snd_nxt=%u rcv_nxt=%u"
+                       " peeksize=%d"
+                       " nrcv_que=%u nsnd_que=%u"
+                       " snd_wnd=%u rmt_wnd=%u"
+                       " snd_una=%u cwnd=%u",
+                       mConv,
+                       mSentCount, mRecvCount,
+                       mKcpCb->snd_nxt, mKcpCb->rcv_nxt,
+                       ikcp_peeksize(mKcpCb),
+                       mKcpCb->nrcv_que, mKcpCb->nsnd_que,
+                       mKcpCb->snd_wnd, mKcpCb->rmt_wnd,
+                       mKcpCb->snd_una, mKcpCb->cwnd);
         }
         
         ikcp_release(mKcpCb);       
@@ -191,7 +205,7 @@ bool KcpTunnelGroup<IsServer>::_create()
     // register for event
     if (!mEventPoller->registerForRead(this->mFd, this))
     {
-        logErrorLn("KcpTunnelGroup::create() register error!");
+        ErrorPrint("KcpTunnelGroup::create() register error!");
         return false;
     }
     return true;
@@ -229,7 +243,7 @@ ITunnel* KcpTunnelGroup<IsServer>::createTunnel(uint32 conv)
     typename Tunnels::iterator it = this->mTunnels.find(conv);
     if (it != this->mTunnels.end())
     {
-        logErrorLn("KcpTunnelGroup::createTunnel() tunnul already exist! conv="<<conv);
+        ErrorPrint("KcpTunnelGroup::createTunnel() tunnul already exist! conv=%u", conv);
         return NULL;
     }
     

@@ -40,7 +40,7 @@ bool FastConnection::acceptConnection(int connfd)
     uint32 conv = 0;
     if (!s_convGen.genNewId(conv))
     {
-        logErrorLn("FastConnection::acceptConnection() no available convids!");
+        ErrorPrint("FastConnection::acceptConnection() no available convids!");
         return false;
     }
 
@@ -79,7 +79,7 @@ bool FastConnection::connect(const char *ip, int port)
     remoteAddr.sin_port = htons(port);
     if (inet_pton(AF_INET, ip, &remoteAddr.sin_addr) < 0)
     {
-        logErrorLn("FastConnection::connect()  illegal ip("<<ip<<")");
+        ErrorPrint("FastConnection::connect()  illegal ip(%s", ip);
         return false;
     }
 
@@ -207,7 +207,7 @@ void FastConnection::onRecvMsg(const void *data, uint8 datalen, void *user)
             mpKcpTunnel = mpTunnelGroup->createTunnel(conv);
             if (NULL == mpKcpTunnel)
             {
-                logErrorLn("FastConnection::handleMessage() fail to create kcp tunnel!");
+                ErrorPrint("FastConnection::handleMessage() fail to create kcp tunnel!");
                 notifyKcpTunnelCreateFailed = true;
                 break;
             }
@@ -222,7 +222,7 @@ void FastConnection::onRecvMsg(const void *data, uint8 datalen, void *user)
         {
             if (NULL == mpKcpTunnel)
             {
-                logErrorLn("FastConnection::handleMessage() we have no kcptunnel on server!");
+                ErrorPrint("FastConnection::handleMessage() we have no kcptunnel on server!");
                 notifyKcpTunnelCreateFailed = true;             
                 break;
             }
@@ -237,7 +237,7 @@ void FastConnection::onRecvMsg(const void *data, uint8 datalen, void *user)
         mHeartBeatRecord.packetRecvTime = core::getClock();
         break;
     default:
-        logErrorLn("FastConnection::handleMessage() undefined message!");
+        ErrorPrint("FastConnection::handleMessage() undefined message!");
         break;
     }
 
@@ -254,12 +254,12 @@ void FastConnection::sendMessage(int msgid, const void *data, size_t datalen)
 {
     if (NULL == mpConnection)
     {
-        logErrorLn("FastConnection::sendMessage() NULL == mpConnection");
+        ErrorPrint("FastConnection::sendMessage() NULL == mpConnection");
         return;
     }
     if (!mpConnection->isConnected())
     {
-        logErrorLn("FastConnection::sendMessage() mpConnection is not connected");
+        ErrorPrint("FastConnection::sendMessage() mpConnection is not connected");
         return;
     }
     

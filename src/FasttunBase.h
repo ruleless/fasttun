@@ -1,7 +1,7 @@
 #ifndef __FASTTUNBASE_H__
 #define __FASTTUNBASE_H__
 
-#include "core/CillCore.h"
+#include "core/cillcore.h"
 #include <list>
 
 using core::mchar;

@@ -116,12 +116,12 @@ class ClientBridge : public Connection::Handler, public FastConnection::Handler
     virtual void onError(FastConnection *pConn)
     {
         _reconnectExternal();
-        logWarningLn("a fast connection ocur an error! reason:"<<coreStrError());
+        WarningPrint("a fast connection ocur an error! reason:%s", coreStrError());
     }
     virtual void onCreateKcpTunnelFailed(FastConnection *pConn)
     {
         _reconnectExternal();
-        logWarningLn("create fast connection faild!");
+        WarningPrint("create fast connection faild!");
     }
 
     virtual void onRecv(FastConnection *pConn, const void *data, size_t datalen)
@@ -171,7 +171,7 @@ class Client : public Listener::Handler, public ClientBridge::Handler
     {
         if (!mListener.create(sa, salen))
         {
-            logErrorLn("create listener failed.");
+            ErrorPrint("create listener failed.");
             return false;
         }
         mListener.setEventHandler(this);
@@ -219,19 +219,19 @@ class Client : public Listener::Handler, public ClientBridge::Handler
         }
 
         mBridges.insert(bridge);
-        logInfoLn("a connection createted! cursize:"<<mBridges.size());
+        DebugPrint("a connection createted! cursize:%u", mBridges.size());
     }
 
     virtual void onIntConnDisconnected(ClientBridge *pBridge)
     {       
         onBridgeShut(pBridge);
-        logInfoLn("a connection closed! cursize:"<<mBridges.size());
+        DebugPrint("a connection closed! cursize:%u", mBridges.size());
     }
     
     virtual void onIntConnError(ClientBridge *pBridge)
     {
         onBridgeShut(pBridge);
-        logInfoLn("a connection occur error! cursize:"<<mBridges.size()<<" reason:"<<coreStrError());
+        WarningPrint("a connection occur error! cursize:%u reason:%s", mBridges.size(), coreStrError());
     }
     
   private:
@@ -264,30 +264,30 @@ void sigHandler(int signo)
     {
     case SIGPIPE:
         {
-            logWarningLn("broken pipe!");
+            WarningPrint("broken pipe!");
         }
         break;
     case SIGINT:
         {
-            logTraceLn("catch SIGINT!");
+            InfoPrint("catch SIGINT!");
             s_continueMainLoop = false;
         }
         break;
     case SIGQUIT:
         {
-            logTraceLn("catch SIGQUIT!");
+            InfoPrint("catch SIGQUIT!");
             s_continueMainLoop = false;
         }
         break;
     case SIGKILL:
         {
-            logTraceLn("catch SIGKILL!");
+            InfoPrint("catch SIGKILL!");
             s_continueMainLoop = false;
         }
         break;
     case SIGTERM:
         {
-            logTraceLn("catch SIGTERM!");
+            InfoPrint("catch SIGTERM!");
             s_continueMainLoop = false;
         }
         break;
@@ -334,25 +334,35 @@ int main(int argc, char *argv[])
         default:
             break;
         }
-    }   
+    }
 
     // daemoniize
-    int traceLevel = core::levelTrace|core::levelWarning|
-                     core::levelError|core::levelEmphasis;
+    int logLevel = InfoLog | WarningLog | ErrorLog | EmphasisLog;
     if (bVerbose)
-        traceLevel |= core::levelInfo;
+        logLevel |= DebugLog;    
+    
     if (pidFlags)
     {
         daemonize(pidPath);
-        
-        core::createTrace(traceLevel);
-        core::output2File("/var/log/tun-cli.log");
+
+        if (log_initialise(logLevel) != 0)
+        {
+            fprintf(stderr, "init log failed!");
+            exit(1);
+        }
+
+        log_reg_filelog("log", "tuncli-", "/var/log", "tuncli-old-", "/var/log");
     }
     else
     {
-        core::createTrace(traceLevel);
-        core::output2Console();
-        core::output2File("tun-cli.log");
+        if (log_initialise(logLevel) != 0)
+        {
+            fprintf(stderr, "init log failed!");
+            exit(1);
+        }
+
+        log_reg_filelog("log", "tuncli-", "/tmp", "tuncli-old-", "/tmp");
+        log_reg_console();
     }   
     
     if (argc == 1)
@@ -376,15 +386,15 @@ int main(int argc, char *argv[])
     if (NULL == listenAddr || NULL == remoteAddr || NULL == kcpRemoteAddr)
     {
         fprintf(stderr, "no argument assigned or parse argument failed!\n");
-        core::closeTrace();
+        log_finalise();
         exit(EXIT_FAILURE);
     }
     if (!core::str2Ipv4(listenAddr, ListenAddr) ||
         !core::str2Ipv4(remoteAddr, RemoteAddr) ||
         !core::str2Ipv4(kcpRemoteAddr, KcpRemoteAddr))
     {
-        logErrorLn("invalid socket address!");
-        core::closeTrace();
+        ErrorPrint("invalid socket address!");
+        log_finalise();
         exit(EXIT_FAILURE);
     }
 
@@ -395,9 +405,9 @@ int main(int argc, char *argv[])
     gTunnelManager = new MyTunnelGroup(netPoller);
     if (!gTunnelManager->create(kcpRemoteAddr))
     {
-        logErrorLn("initialise Tunnel Manager error!");
+        ErrorPrint("initialise Tunnel Manager error!");
         delete netPoller;
-        core::closeTrace();
+        log_finalise();
         exit(EXIT_FAILURE);
     }
 
@@ -405,11 +415,11 @@ int main(int argc, char *argv[])
     Client cli(netPoller);
     if (!cli.create((const SA *)&ListenAddr, sizeof(ListenAddr)))
     {
-        logErrorLn("create client error!");
+        ErrorPrint("create client error!");
         gTunnelManager->shutdown();
         delete gTunnelManager;
         delete netPoller;
-        core::closeTrace();
+        log_finalise();
         exit(EXIT_FAILURE);
     }   
 
@@ -429,7 +439,7 @@ int main(int argc, char *argv[])
     static const uint32 MAX_WAIT = 60000;
     double maxWait = 0;
     uint32 curClock = 0, nextKcpUpdateInterval = 0, nextTimerCheckInterval = 0;
-    logTraceLn("Enter Main Loop...");
+    DebugPrint("Enter Main Loop...");
     while (s_continueMainLoop)
     {
         curClock = core::getClock();
@@ -448,7 +458,7 @@ int main(int argc, char *argv[])
         maxWait  = min(nextKcpUpdateInterval, nextTimerCheckInterval);
         maxWait *= 0.001f;      
     }
-    logTraceLn("Leave Main Loop...");
+    DebugPrint("Leave Main Loop...");
 
     // finalise
     cli.finalise(); 
@@ -458,8 +468,8 @@ int main(int argc, char *argv[])
     
     delete netPoller;
 
-    // close tracer
-    logTraceLn("Exit Fasttun!");
-    core::closeTrace();
+    // uninit log
+    DebugPrint("Exit Fasttun!");
+    log_finalise();
     exit(0);
 }

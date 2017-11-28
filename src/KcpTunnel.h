@@ -54,7 +54,7 @@ class TunnelGroup : public ITunnelGroup
     {
         if (!core::str2Ipv4(addr, mSockAddr))
         {
-            logErrorLn("KcpTunnelGroup::create() invalid sockaddr! "<<addr);
+            ErrorPrint("KcpTunnelGroup::create() invalid sockaddr! %s", addr);
             return false;
         }
 
@@ -106,7 +106,7 @@ class TunnelGroup<true> : public ITunnelGroup
         sockaddr_in sockaddr;
         if (!core::str2Ipv4(addr, sockaddr))
         {
-            logErrorLn("KcpTunnelGroup::create() invalid sockaddr! "<<addr);
+            ErrorPrint("KcpTunnelGroup::create() invalid sockaddr! %s", addr);
             return false;
         }
         return this->create((SA *)&sockaddr, sizeof(sockaddr));
@@ -125,7 +125,7 @@ class TunnelGroup<true> : public ITunnelGroup
         // bind local address
         if (bind(mFd, sa, salen) < 0)
         {
-            logErrorLn("KcpTunnelGroup::create() bind local address err! "<<coreStrError());
+            ErrorPrint("KcpTunnelGroup::create() bind local address err! %s", coreStrError());
             return false;
         }
 

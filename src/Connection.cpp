@@ -12,7 +12,7 @@ bool Connection::acceptConnection(int connfd)
 {
     if (mFd >= 0)
     {
-        logErrorLn("Connection::acceptConnection()  accept connetion error! the conn is in use!");
+        ErrorPrint("Connection::acceptConnection()  accept connetion error! the conn is in use!");
         return false;
     }
 
@@ -21,7 +21,7 @@ bool Connection::acceptConnection(int connfd)
     // set nonblocking      
     if (!core::setNonblocking(mFd))
     {
-        logErrorLn("Connection::acceptConnection()  set nonblocking error! "<<coreStrError());
+        ErrorPrint("Connection::acceptConnection()  set nonblocking error! %s", coreStrError());
         goto err_1;
     }
     
@@ -44,7 +44,7 @@ bool Connection::connect(const char *ip, int port)
     remoteAddr.sin_port = htons(port);
     if (inet_pton(AF_INET, ip, &remoteAddr.sin_addr) < 0)
     {
-        logErrorLn("Connection::connect()  illegal ip("<<ip<<")");
+        ErrorPrint("Connection::connect()  illegal ip(%s)", ip);
         return false;
     }
 
@@ -58,21 +58,21 @@ bool Connection::connect(const SA *sa, socklen_t salen)
         
     if (mFd >= 0)
     {
-        logErrorLn("Connection::connect()  accept connetion error! the conn is in use!");
+        ErrorPrint("Connection::connect()  accept connetion error! the conn is in use!");
         return false;
     }
 
     mFd = socket(AF_INET, SOCK_STREAM, 0);
     if (mFd < 0)
     {
-        logErrorLn("Connection::connect()  create socket error!"<<coreStrError());
+        ErrorPrint("Connection::connect()  create socket error! %s", coreStrError());
         return false;
     }
 
     // set nonblocking
     if (!core::setNonblocking(mFd))
     {
-        logErrorLn("Connection::connect()  set nonblocking error! "<<coreStrError());
+        ErrorPrint("Connection::connect()  set nonblocking error! %s", coreStrError());
         goto err_1;
     }   
 
@@ -115,12 +115,12 @@ void Connection::send(const void *data, size_t datalen)
 {
     if (mFd < 0)
     {
-        logErrorLn("Connection::send()  send error! socket uninited or shuted!");
+        ErrorPrint("Connection::send()  send error! socket uninited or shuted!");
         return;
     }
     if (mConnStatus != ConnStatus_Connected)
     {
-        logErrorLn("Connection::send()  can't send data in such status("<<mConnStatus<<")");
+        ErrorPrint("Connection::send()  can't send data in such status(%d)", mConnStatus);
         return;
     }
 
@@ -166,7 +166,7 @@ int Connection::handleInputNotification(int fd)
 {   
     if (mConnStatus != ConnStatus_Connected)
     {
-        logErrorLn("handleInputNotification() Connection is not connected! fd="<<fd);
+        ErrorPrint("handleInputNotification() Connection is not connected! fd=%d", fd);
         return 0;
     }
         
@@ -210,7 +210,7 @@ int Connection::handleInputNotification(int fd)
 
     if (curlen >= LIMIT_LEN)
     {
-        logWarningLn("get big data! recvlen="<<curlen);
+        WarningPrint("get big data! recvlen=%d", curlen);
     }
 
     if (curlen > 0 && mHandler)

@@ -14,7 +14,7 @@ bool Listener::create(const char *ip, int port)
     remoteAddr.sin_port = htons(port);
     if (inet_pton(AF_INET, ip, &remoteAddr.sin_addr) < 0)
     {
-        logErrorLn("Listener::create()  illegal ip("<<ip<<")");
+        ErrorPrint("Listener::create()  illegal ip(%s)", ip);
         return false;
     }
 
@@ -25,14 +25,14 @@ bool Listener::create(const SA *sa, socklen_t salen)
 {   
     if (mFd >= 0)
     {
-        logErrorLn("Listener already created!");
+        ErrorPrint("Listener already created!");
         return false;
     }
 
     mFd = socket(AF_INET, SOCK_STREAM, 0);
     if (mFd < 0)
     {
-        logErrorLn("Listener::create()  create socket error! "<<coreStrError());
+        ErrorPrint("Listener::create()  create socket error! %s", coreStrError());
         return false;
     }
 
@@ -47,25 +47,25 @@ bool Listener::create(const SA *sa, socklen_t salen)
     // set nonblocking  
     if (!core::setNonblocking(mFd))
     {
-        logErrorLn("Listener::create()  set nonblocking error! "<<coreStrError());
+        ErrorPrint("Listener::create()  set nonblocking error! %s", coreStrError());
         goto err_1;
     }
     
     if (bind(mFd, sa, salen) < 0)
     {
-        logErrorLn("Listener::create()  bind error! "<<coreStrError());
+        ErrorPrint("Listener::create()  bind error! %s", coreStrError());
         goto err_1;
     }
 
     if (listen(mFd, LISTENQ) < 0)
     {
-        logErrorLn("Listener::create()  listen failed! "<<coreStrError());
+        ErrorPrint("Listener::create()  listen failed! %s", coreStrError());
         goto err_1;
     }
 
     if (!mEventPoller->registerForRead(mFd, this))
     {
-        logErrorLn("Listener::create()  registerForRead failed! "<<coreStrError());
+        ErrorPrint("Listener::create()  registerForRead failed! %s", coreStrError());
         goto err_1;
     }
 
@@ -98,8 +98,8 @@ int Listener::handleInputNotification(int fd)
         addrlen = sizeof(addr);
         int connfd = accept(fd, (SA *)&addr, &addrlen);
         if (connfd < 0)
-        {
-            // logTraceLn("accept failed! "<<coreStrError());
+        {            
+            // DebugPrint("accept failed! %s", coreStrError());
             break;
         }
         else
@@ -118,7 +118,7 @@ int Listener::handleInputNotification(int fd)
                     snprintf(acceptLog, sizeof(acceptLog), "(%s:%d) accept from %s:%d",
                              localip, ntohs(localAddr.sin_port),
                              remoteip, ntohs(remoteAddr.sin_port));
-                    logTraceLn(acceptLog);
+                    DebugPrint(acceptLog);
                 }
             }
 #endif 

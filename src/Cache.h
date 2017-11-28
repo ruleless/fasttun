@@ -49,7 +49,7 @@ class Cache
                 return;
             }
             
-            logErrorLn("Cache::cache() write to file failed! return code:"<<ret);
+            ErrorPrint("Cache::cache() write to file failed! return code:%d", ret);
         }
         
         // cache in mem
@@ -84,7 +84,7 @@ class Cache
             char *ptr = (char *)malloc(sz);
             if (NULL == ptr)
             {
-                logErrorLn("malloc failed size="<<sz);
+                ErrorPrint("malloc failed size=%lld", sz);
                 assert(false);
             }           
             assert(mDiskCache.read(ptr, sz) == sz);

@@ -11,7 +11,7 @@ EpollPoller::EpollPoller(int expectedSize)
     mEpfd = epoll_create(expectedSize);
     if (mEpfd == -1)
     {
-        logErrorLn("EpollPoller::EpollPoller()  epoll_create failed  err:"<<coreStrError());        
+        ErrorPrint("EpollPoller::EpollPoller() epoll_create failed err:%s", coreStrError());
     }
 }
 
@@ -83,7 +83,7 @@ bool EpollPoller::doRegister(int fd, bool isRead, bool isRegister)
                  (isRead ? "read" : "write"),
                  fd,
                  coreStrError());
-        logErrorLn(errMsg);
+        ErrorPrint(errMsg);
 
         return false;
     }

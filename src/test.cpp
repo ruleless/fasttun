@@ -93,7 +93,7 @@ class ClientBridge : public Connection::Handler
     {
         if (pConn == mpExtConn)
         {
-            logTraceLn("ss connected!");
+            DebugPrint("ss connected!");
             _flushAll();
         }
     }
@@ -121,12 +121,12 @@ class ClientBridge : public Connection::Handler
                 _flushAll();
                 mpExtConn->send(data, datalen);
             }
-            logInfoLn("internal recvlen="<<datalen);
+            DebugPrint("internal recvlen=%u", datalen);
         }
         else
         {
             mpIntConn->send(data, datalen);
-            logInfoLn("external recvlen="<<datalen);
+            DebugPrint("external recvlen=%u", datalen);
         }
     }
     
@@ -197,7 +197,7 @@ class Client : public Listener::Handler, public ClientBridge::Handler
     {
         if (!mListener.create((const SA *)&ListenAddr, sizeof(ListenAddr)))
         {
-            logErrorLn("create listener failed.");
+            ErrorPrint("create listener failed.");
             return false;
         }
         mListener.setEventHandler(this);
@@ -231,19 +231,19 @@ class Client : public Listener::Handler, public ClientBridge::Handler
         }
 
         mBridges.insert(bridge);
-        logInfoLn("a connection createted! cursize:"<<mBridges.size());
+        DebugPrint("a connection createted! cursize:%u", mBridges.size());
     }
 
     virtual void onIntConnDisconnected(ClientBridge *pBridge)
     {               
         onBridgeShut(pBridge);
-        logInfoLn("a connection closed! cursize:"<<mBridges.size());
+        DebugPrint("a connection closed! cursize:%u", mBridges.size());
     }
     
     virtual void onIntConnError(ClientBridge *pBridge)
     {       
         onBridgeShut(pBridge);
-        logInfoLn("a connection occur error! cursize:"<<mBridges.size()<<" reason:"<<coreStrError());
+        DebugPrint("a connection occur error! cursize:%u reason:%s", mBridges.size(), coreStrError());
     }       
     
   private:
@@ -271,10 +271,13 @@ class Client : public Listener::Handler, public ClientBridge::Handler
 
 int main(int argc, char *argv[])
 {
-    // initialise tracer
-    core::createTrace();
-    core::output2Console();
-    core::output2Html("fasttun_test.html");
+    // initialise log
+    if (log_initialise(AllLog) != 0)
+    {
+        fprintf(stderr, "init log failed!");
+        exit(1);
+    }
+    log_reg_console();
 
     // parse parameter
     const char *confPath = NULL;
@@ -318,13 +321,13 @@ int main(int argc, char *argv[])
     if (NULL == listenAddr || NULL == remoteAddr)
     {
         fprintf(stderr, "no argument assigned or parse argument failed!\n");
-        core::closeTrace();
+        log_finalise();
         exit(EXIT_FAILURE);
     }
     if (!core::str2Ipv4(listenAddr, ListenAddr) || !core::str2Ipv4(remoteAddr, RemoteAddr))
     {
-        logErrorLn("invalid socket address!");
-        core::closeTrace();
+        ErrorPrint("invalid socket address!");
+        log_finalise();
         exit(EXIT_FAILURE);
     }
 
@@ -335,9 +338,9 @@ int main(int argc, char *argv[])
     Client cli(netPoller);
     if (!cli.create())
     {
-        logErrorLn("create client error!");
+        ErrorPrint("create client error!");
         delete netPoller;
-        core::closeTrace();
+        log_finalise();
         exit(EXIT_FAILURE);
     }   
 
@@ -349,7 +352,7 @@ int main(int argc, char *argv[])
     cli.finalise(); 
     delete netPoller;
 
-    // close tracer
-    core::closeTrace();
+    // uninit log
+    log_finalise();
     exit(0);
 }

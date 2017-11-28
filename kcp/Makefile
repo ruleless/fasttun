@@ -5,4 +5,4 @@ LIBPATH:= $(ROOT)/lib
 
 LIB:= libkcp.a
 
-include $(ROOT)/cbuild.mak
+include $(ROOT)/cill/cbuild.mak

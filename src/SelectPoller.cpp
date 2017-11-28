@@ -48,7 +48,7 @@ int SelectPoller::processPendingEvents(double maxWait)
     }
     else if (countReady == -1)
     {
-        logWarningLn("EventDispatcher::processPendingEvents()  error in select() err:"<<coreStrError());
+        WarningPrint("EventDispatcher::processPendingEvents() error in select() err:%s", coreStrError());
     }
 
     return countReady;
@@ -93,7 +93,7 @@ bool SelectPoller::doRegisterForRead(int fd)
 #ifndef _WIN32
     if ((fd < 0) || (FD_SETSIZE <= fd))
     {
-        logErrorLn("SelectPoller::doRegisterForRead()  Tried to register invalid fd("<<fd<<")  FD_SETSIZE("<<FD_SETSIZE<<")");      
+        ErrorPrint("SelectPoller::doRegisterForRead()  Tried to register invalid fd(%d) FD_SETSIZE(%d)", fd, FD_SETSIZE);
 
         return false;
     }
@@ -120,7 +120,7 @@ bool SelectPoller::doRegisterForWrite(int fd)
 #ifndef _WIN32
     if ((fd < 0) || (FD_SETSIZE <= fd))
     {
-        logErrorLn("SelectPoller::doRegisterForWrite()  Tried to register invalid fd("<<fd<<")  FD_SETSIZE("<<FD_SETSIZE<<")");             
+        ErrorPrint("SelectPoller::doRegisterForWrite()  Tried to register invalid fd(%d) FD_SETSIZE(%d)", fd, FD_SETSIZE);
 
         return false;
     }
