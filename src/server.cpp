@@ -296,13 +296,13 @@ class Server : public Listener::Handler, public ServerBridge::Handler
         }
 
         mBridges.insert(bridge);
-        InfoPrint("a fast connection createted! cursize:%u", mBridges.size());
+        DebugPrint("a fast connection createted! cursize:%u", mBridges.size());
     }
 
     virtual void onExtConnDisconnected(ServerBridge *pBridge)
     {       
         onBridgeShut(pBridge);
-        InfoPrint("a fast connection closed! cursize:%u", mBridges.size());
+        DebugPrint("a fast connection closed! cursize:%u", mBridges.size());
     }
     
     virtual void onExtConnError(ServerBridge *pBridge)
