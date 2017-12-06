@@ -19,7 +19,7 @@ class Cache
             ,mLenCacheInMem(0)
             ,mLenCacheInFile(0)
     {}
-    
+
     virtual ~Cache()
     {
         typename DataList::iterator it = this->mCachedList.begin();
@@ -43,15 +43,15 @@ class Cache
         if (mLenCacheInMem+len > MAX_LEN_CACHE_IN_MEM || mLenCacheInFile > 0)
         {
             int ret = mDiskCache.write(data, len);
-            if (ret == len)
+            if (ret == (int)len)
             {
                 mLenCacheInFile += len;
                 return;
             }
-            
+
             ErrorPrint("Cache::cache() write to file failed! return code:%d", ret);
         }
-        
+
         // cache in mem
         Data d;
         mLenCacheInMem += len;
@@ -60,6 +60,18 @@ class Cache
         assert(d.data != NULL && "cache() malloc failed");
         memcpy(d.data, data, len);
         this->mCachedList.push_back(d);
+    }
+
+    void clear()
+    {
+        typename DataList::iterator it = this->mCachedList.begin();
+        for (; it != this->mCachedList.end(); ++it)
+        {
+            free((*it).data);
+        }
+        this->mCachedList.clear();
+
+        mDiskCache.clear();
     }
 
     bool flushAll()
@@ -86,7 +98,7 @@ class Cache
             {
                 ErrorPrint("malloc failed size=%lld", sz);
                 assert(false);
-            }           
+            }
             assert(mDiskCache.read(ptr, sz) == sz);
 
             if ((mHost->*mFunc)(ptr, sz))
@@ -101,10 +113,10 @@ class Cache
                 return false;
             }
         }
-        
+
         return true;
     }
-    
+
   private:
     struct Data
     {
@@ -125,6 +137,3 @@ class Cache
 NAMESPACE_END // namespace tun
 
 #endif // __CACHE_H__
-
-
-

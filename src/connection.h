@@ -13,23 +13,23 @@ class Connection : public InputNotificationHandler, public OutputNotificationHan
     {
       public:
         Handler() {}
-        
+
         virtual void onConnected(Connection *pConn) {}
         virtual void onDisconnected(Connection *pConn) {}
 
         virtual void onRecv(Connection *pConn, const void *data, size_t datalen) = 0;
-        virtual void onError(Connection *pConn) {}      
+        virtual void onError(Connection *pConn) {}
     };
 
     enum EConnStatus
     {
-        ConnStatus_Closed,      
+        ConnStatus_Closed,
         ConnStatus_Error,
 
         ConnStatus_Connecting,
         ConnStatus_Connected,
     };
-    
+
     Connection(EventPoller *poller)
             :mFd(-1)
             ,mConnStatus(ConnStatus_Closed)
@@ -41,11 +41,11 @@ class Connection : public InputNotificationHandler, public OutputNotificationHan
             ,mBuffer(NULL)
     {
         assert(mEventPoller && "Connection::mEventPoller != NULL");
-        
+
         mBuffer = (char *)malloc(MAXLEN);
         assert(mBuffer != NULL && "Connection malloc buffer failed");
     }
-    
+
     virtual ~Connection();
 
     bool acceptConnection(int connfd);
@@ -53,8 +53,8 @@ class Connection : public InputNotificationHandler, public OutputNotificationHan
     bool connect(const SA *sa, socklen_t salen);
 
     void shutdown();    
-    
-    void send(const void *data, size_t datalen);    
+
+    void send(const void *data, size_t datalen);
 
     inline void setEventHandler(Handler *h)
     {
@@ -78,24 +78,24 @@ class Connection : public InputNotificationHandler, public OutputNotificationHan
   private:
     void tryRegReadEvent();
     void tryUnregReadEvent();
-    
+
     void tryRegWriteEvent();
-    void tryUnregWriteEvent();  
-    
+    void tryUnregWriteEvent();
+
     bool tryFlushRemainPacket();
     void cachePacket(const void *data, size_t datalen);
 
     bool checkSocketErrors();
-    EReason _checkSocketErrors();   
-    
+    EReason _checkSocketErrors();
+
   private:
     static const int MAXLEN = 8*1024;
-    static const int LIMIT_LEN = 1024*1024; 
+    static const int LIMIT_LEN = 1024*1024;
     typedef std::list<TcpPacket *> TcpPacketList;
-    
+
     int mFd;
     EConnStatus mConnStatus;
-    Handler *mHandler; 
+    Handler *mHandler;
 
     EventPoller *mEventPoller;
     bool mbRegForRead;

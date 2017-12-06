@@ -7,32 +7,32 @@ Listener::~Listener()
     finalise();
 }
 
-bool Listener::create(const char *ip, int port)
+bool Listener::initialise(const char *ip, int port)
 {
     struct sockaddr_in remoteAddr;
     remoteAddr.sin_family = AF_INET;
     remoteAddr.sin_port = htons(port);
     if (inet_pton(AF_INET, ip, &remoteAddr.sin_addr) < 0)
     {
-        ErrorPrint("Listener::create()  illegal ip(%s)", ip);
+        ErrorPrint("[Listener::initialise] illegal ip(%s)", ip);
         return false;
     }
 
-    return create((const SA *)&remoteAddr, sizeof(remoteAddr));
+    return initialise((const SA *)&remoteAddr, sizeof(remoteAddr));
 }
 
-bool Listener::create(const SA *sa, socklen_t salen)
-{   
+bool Listener::initialise(const SA *sa, socklen_t salen)
+{
     if (mFd >= 0)
     {
-        ErrorPrint("Listener already created!");
+        ErrorPrint("Listener already inited!");
         return false;
     }
 
     mFd = socket(AF_INET, SOCK_STREAM, 0);
     if (mFd < 0)
     {
-        ErrorPrint("Listener::create()  create socket error! %s", coreStrError());
+        ErrorPrint("[Listener::initialise] init socket error! %s", coreStrError());
         return false;
     }
 
@@ -44,28 +44,28 @@ bool Listener::create(const SA *sa, socklen_t salen)
     setsockopt(mFd, SOL_SOCKET, SO_REUSEPORT, (const char*)&opt, sizeof(opt));
 #endif
 
-    // set nonblocking  
-    if (!core::setNonblocking(mFd))
+    // set nonblocking
+    if (!setNonblocking(mFd))
     {
-        ErrorPrint("Listener::create()  set nonblocking error! %s", coreStrError());
+        ErrorPrint("[Listener::initialise] set nonblocking error! %s", coreStrError());
         goto err_1;
     }
-    
+
     if (bind(mFd, sa, salen) < 0)
     {
-        ErrorPrint("Listener::create()  bind error! %s", coreStrError());
+        ErrorPrint("[Listener::initialise] bind error! %s", coreStrError());
         goto err_1;
     }
 
     if (listen(mFd, LISTENQ) < 0)
     {
-        ErrorPrint("Listener::create()  listen failed! %s", coreStrError());
+        ErrorPrint("[Listener::initialise] listen failed! %s", coreStrError());
         goto err_1;
     }
 
     if (!mEventPoller->registerForRead(mFd, this))
     {
-        ErrorPrint("Listener::create()  registerForRead failed! %s", coreStrError());
+        ErrorPrint("[Listener::initialise] registerForRead failed! %s", coreStrError());
         goto err_1;
     }
 
@@ -74,7 +74,7 @@ bool Listener::create(const SA *sa, socklen_t salen)
 err_1:
     close(mFd);
     mFd = -1;
-    
+
     return false;
 }
 
@@ -82,7 +82,7 @@ void Listener::finalise()
 {
     if (mFd < 0)
         return;
-    
+
     mEventPoller->deregisterForRead(mFd);
     close(mFd);
     mFd = -1;
@@ -98,7 +98,7 @@ int Listener::handleInputNotification(int fd)
         addrlen = sizeof(addr);
         int connfd = accept(fd, (SA *)&addr, &addrlen);
         if (connfd < 0)
-        {            
+        {
             // DebugPrint("accept failed! %s", coreStrError());
             break;
         }
@@ -121,15 +121,15 @@ int Listener::handleInputNotification(int fd)
                     DebugPrint(acceptLog);
                 }
             }
-#endif 
-            
+#endif
+
             if (mHandler)
             {
                 mHandler->onAccept(connfd);
             }
         }
     }
-    
+
     return 0;
 }
 

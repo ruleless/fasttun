@@ -13,7 +13,7 @@ class Listener : InputNotificationHandler
     {
         virtual void onAccept(int connfd) = 0;
     };
-    
+
     Listener(EventPoller *poller)
             :mFd(-1)
             ,mHandler(NULL)
@@ -21,11 +21,11 @@ class Listener : InputNotificationHandler
     {
         assert(mEventPoller && "Listener::mEventPoller != NULL");
     }
-    
+
     virtual ~Listener();
 
-    bool create(const char *ip, int port);
-    bool create(const SA *sa, socklen_t salen);
+    bool initialise(const char *ip, int port);
+    bool initialise(const SA *sa, socklen_t salen);
     void finalise();
 
     inline void setEventHandler(Handler *h)
@@ -38,8 +38,8 @@ class Listener : InputNotificationHandler
   private:
     int mFd;
     Handler *mHandler;
-    
-    EventPoller *mEventPoller;  
+
+    EventPoller *mEventPoller;
 };
 
 NAMESPACE_END // namespace tun

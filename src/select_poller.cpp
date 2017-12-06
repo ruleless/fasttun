@@ -100,7 +100,7 @@ bool SelectPoller::doRegisterForRead(int fd)
 #else
     if (mFdReadSet.fd_count >= FD_SETSIZE)
     {
-        ErrorLn("SelectPoller::doRegisterForRead()  Tried to register invalid fd("<<fd<<")  FD_SETSIZE("<<FD_SETSIZE<<")");     
+        ErrorPrint("SelectPoller::doRegisterForRead()  Tried to register invalid fd(%d) FD_SETSIZE(%d)", fd, FD_SETSIZE);
 
         return false;
     }
@@ -127,7 +127,7 @@ bool SelectPoller::doRegisterForWrite(int fd)
 #else
     if (mFdWriteSet.fd_count >= FD_SETSIZE)
     {
-        ErrorLn("SelectPoller::doRegisterForWrite()  Tried to register invalid fd("<<fd<<")  FD_SETSIZE("<<FD_SETSIZE<<")");        
+        ErrorLn("SelectPoller::doRegisterForWrite()  Tried to register invalid fd("<<fd<<")  FD_SETSIZE("<<FD_SETSIZE<<")");
 
         return false;
     }
@@ -139,9 +139,9 @@ bool SelectPoller::doRegisterForWrite(int fd)
     }
 
     FD_SET(fd, &mFdWriteSet);
-    mMaxFd = max(fd, mMaxFd);   
+    mMaxFd = max(fd, mMaxFd);
     ++mFdWriteCount;
-    
+
     return true;
 }
 

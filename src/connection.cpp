@@ -12,19 +12,19 @@ bool Connection::acceptConnection(int connfd)
 {
     if (mFd >= 0)
     {
-        ErrorPrint("Connection::acceptConnection()  accept connetion error! the conn is in use!");
+        ErrorPrint("[acceptConnection] accept connetion error! the conn is in use!");
         return false;
     }
 
-    mFd = connfd;   
+    mFd = connfd;
 
-    // set nonblocking      
+    // set nonblocking
     if (!core::setNonblocking(mFd))
     {
-        ErrorPrint("Connection::acceptConnection()  set nonblocking error! %s", coreStrError());
+        ErrorPrint("[acceptConnection] set nonblocking error! %s", coreStrError());
         goto err_1;
     }
-    
+
     tryRegReadEvent();
 
     mConnStatus = ConnStatus_Connected;
@@ -44,7 +44,7 @@ bool Connection::connect(const char *ip, int port)
     remoteAddr.sin_port = htons(port);
     if (inet_pton(AF_INET, ip, &remoteAddr.sin_addr) < 0)
     {
-        ErrorPrint("Connection::connect()  illegal ip(%s)", ip);
+        ErrorPrint("[connect] illegal ip(%s)", ip);
         return false;
     }
 
@@ -55,42 +55,53 @@ bool Connection::connect(const SA *sa, socklen_t salen)
 {
     if (mFd >= 0)
         shutdown();
-        
+
     if (mFd >= 0)
     {
-        ErrorPrint("Connection::connect()  accept connetion error! the conn is in use!");
+        ErrorPrint("[connect] accept connetion error! the conn is in use!");
         return false;
     }
 
     mFd = socket(AF_INET, SOCK_STREAM, 0);
     if (mFd < 0)
     {
-        ErrorPrint("Connection::connect()  create socket error! %s", coreStrError());
+        ErrorPrint("[connect] create socket error! %s", coreStrError());
         return false;
     }
 
     // set nonblocking
     if (!core::setNonblocking(mFd))
     {
-        ErrorPrint("Connection::connect()  set nonblocking error! %s", coreStrError());
+        ErrorPrint("[connect] set nonblocking error! %s", coreStrError());
         goto err_1;
-    }   
-
-    if (::connect(mFd, sa, salen) < 0)
-    {
-        if (errno != EINPROGRESS)
-            goto err_1;
     }
 
-    tryRegWriteEvent();
+    if (::connect(mFd, sa, salen) == 0) // 连接成功
+    {
+        tryRegReadEvent();
+        mConnStatus = ConnStatus_Connected;
+        if (mHandler)
+            mHandler->onConnected(this);
+    }
+    else
+    {
+        if (errno == EINPROGRESS)
+        {
+            mConnStatus = ConnStatus_Connecting;
+            tryRegWriteEvent();
+        }
+        else
+        {
+            goto err_1;
+        }
+    }
 
-    mConnStatus = ConnStatus_Connecting;
     return true;
 
 err_1:
     close(mFd);
     mFd = -1;
-    
+
     return false;
 }
 
@@ -115,12 +126,12 @@ void Connection::send(const void *data, size_t datalen)
 {
     if (mFd < 0)
     {
-        ErrorPrint("Connection::send()  send error! socket uninited or shuted!");
+        ErrorPrint("[send] send error! socket uninited or shuted!");
         return;
     }
     if (mConnStatus != ConnStatus_Connected)
     {
-        ErrorPrint("Connection::send()  can't send data in such status(%d)", mConnStatus);
+        ErrorPrint("[send] can't send data in such status(%d)", mConnStatus);
         return;
     }
 
@@ -129,7 +140,7 @@ void Connection::send(const void *data, size_t datalen)
     {
         int sentlen = ::send(mFd, data, datalen, 0);
         // int sentlen = -1; errno = EAGAIN;
-        if (sentlen == datalen)
+        if ((size_t)sentlen == datalen)
             return;
 
         if (sentlen > 0)
@@ -163,13 +174,13 @@ bool Connection::gethostname(SA *sa, socklen_t *salen) const
 }
 
 int Connection::handleInputNotification(int fd)
-{   
+{
     if (mConnStatus != ConnStatus_Connected)
     {
-        ErrorPrint("handleInputNotification() Connection is not connected! fd=%d", fd);
+        ErrorPrint("[handleInputNotification] Connection is not connected! fd=%d", fd);
         return 0;
     }
-        
+
     char *buf = mBuffer;
     int curlen = 0;
     for (;;)
@@ -222,42 +233,45 @@ int Connection::handleInputNotification(int fd)
     {
         if (ConnStatus_Error == mConnStatus)
         {
-            shutdown();
+            tryUnregReadEvent();
+            tryUnregWriteEvent();
             mHandler->onError(this);
         }
         else if (ConnStatus_Closed == mConnStatus)
         {
-            shutdown();
+            tryUnregReadEvent();
+            tryUnregWriteEvent();
             mHandler->onDisconnected(this);
         }
-    }   
+    }
 
     return 0;
 }
 
 int Connection::handleOutputNotification(int fd)
-{   
+{
     if (ConnStatus_Connecting == mConnStatus)
     {
         tryUnregWriteEvent();
-        
+
         int err = 0;
         socklen_t errlen = sizeof(int);
         if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &errlen) < 0 || err != 0)
         {
             if (err != 0)
                 errno = err;
-            
+
             mConnStatus = ConnStatus_Error;
             if (mHandler)
             {
-                shutdown();
+                tryUnregReadEvent();
+                tryUnregWriteEvent();
                 mHandler->onError(this);
             }
-            
+
             return 0;
         }
-        
+
         tryRegReadEvent();
         mConnStatus = ConnStatus_Connected;
         if (mHandler)
@@ -278,7 +292,7 @@ void Connection::tryRegReadEvent()
     if (!mbRegForRead)
     {
         mbRegForRead = true;
-        mEventPoller->registerForRead(mFd, this);               
+        mEventPoller->registerForRead(mFd, this);
     }
 }
 
@@ -306,7 +320,7 @@ void Connection::tryUnregWriteEvent()
     {
         mbRegForWrite = false;
         mEventPoller->deregisterForWrite(mFd);
-    }   
+    }
 }
 
 bool Connection::tryFlushRemainPacket()
@@ -315,7 +329,7 @@ bool Connection::tryFlushRemainPacket()
     {
         return true;
     }
-    
+
     TcpPacketList::iterator it = mTcpPacketList.begin();
     for (; it != mTcpPacketList.end();)
     {
@@ -323,14 +337,14 @@ bool Connection::tryFlushRemainPacket()
         assert(p->buflen > p->sentlen && "p->buflen > p->sentlen");
         size_t len = p->buflen - p->sentlen;
         int sentlen = ::send(mFd, p->buf+p->sentlen, len, 0);
-        
-        if (len == sentlen)
+
+        if (len == (size_t)sentlen)
         {
             delete p;
             mTcpPacketList.erase(it++);
             continue;
         }
-        
+
         if (sentlen > 0)
             p->sentlen += sentlen;
         break;
@@ -341,7 +355,7 @@ bool Connection::tryFlushRemainPacket()
         tryUnregWriteEvent();
         return true;
     }
-        
+
     return false;
 }
 
@@ -360,9 +374,10 @@ bool Connection::checkSocketErrors()
     EReason err = _checkSocketErrors();
     if (err != Reason_ResourceUnavailable)
     {
-        shutdown();
         if (mHandler)
         {
+            tryUnregReadEvent();
+            tryUnregWriteEvent();
             mHandler->onError(this);
         }
         return true;
@@ -381,10 +396,10 @@ EReason Connection::_checkSocketErrors()
         return Reason_ResourceUnavailable;
 
     switch (err)
-    {   
+    {
     case ECONNREFUSED:
         reason = Reason_NoSuchPort;
-        break;  
+        break;
     case EPIPE:
         reason = Reason_ClientDisconnected;
         break;
@@ -410,13 +425,13 @@ EReason Connection::_checkSocketErrors()
         switch (err)
         {
         case WSAECONNREFUSED:
-            reason = Reason_NoSuchPort; 
+            reason = Reason_NoSuchPort;
             break;
         case WSAECONNRESET:
-            reason = Reason_ClientDisconnected; 
+            reason = Reason_ClientDisconnected;
             break;
         case WSAECONNABORTED:
-            reason = Reason_ClientDisconnected; 
+            reason = Reason_ClientDisconnected;
             break;
         default:
             reason = Reason_GeneralNetwork;

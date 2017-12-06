@@ -30,8 +30,6 @@ class EventPoller
     EventPoller();
     virtual ~EventPoller();
 
-    static EventPoller* create();
-
     bool registerForRead(int fd, InputNotificationHandler *handler);
     bool registerForWrite(int fd, OutputNotificationHandler *handler);
 
@@ -40,7 +38,7 @@ class EventPoller
 
     virtual int processPendingEvents(double maxWait) = 0;
     virtual int getFileDescriptor() const;
-    
+
     void clearSpareTime()
     {
         mSpareTime = 0;
@@ -50,8 +48,8 @@ class EventPoller
         return mSpareTime;
     }
 
-    InputNotificationHandler* findForRead(int fd);
-    OutputNotificationHandler* findForWrite(int fd);
+    InputNotificationHandler *findForRead(int fd);
+    OutputNotificationHandler *findForWrite(int fd);
   protected:
     virtual bool doRegisterForRead(int fd) = 0;
     virtual bool doRegisterForWrite(int fd) = 0;
@@ -62,7 +60,7 @@ class EventPoller
     bool triggerRead(int fd);
     bool triggerWrite(int fd);
     bool triggerError(int fd);
-    
+
     bool isRegistered(int fd, bool isForRead) const;
 
     int recalcMaxFD() const;
@@ -71,7 +69,7 @@ class EventPoller
   private:
     typedef std::map<int, InputNotificationHandler *> FDReadHandlers;
     typedef std::map<int, OutputNotificationHandler *> FDWriteHandlers;
-    
+
     FDReadHandlers mFdReadHandlers;
     FDWriteHandlers mFdWriteHandlers;
 };

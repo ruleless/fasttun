@@ -11,7 +11,7 @@ class DiskCache
     DiskCache()
             :mpFile(NULL)
     {}
-    
+
     virtual ~DiskCache();
 
     ssize_t write(const void *data, size_t datalen);

@@ -21,7 +21,7 @@ ssize_t DiskCache::write(const void *data, size_t datalen)
         return -10;
     if (fseek(mpFile, 0, SEEK_END) < 0)
         return -11;
-    
+
     if (fwrite(&datalen, 1, sizeof(datalen), mpFile) != sizeof(datalen))
         return -2;
     if (fwrite(data, 1, datalen, mpFile) != datalen)
