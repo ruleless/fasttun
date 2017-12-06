@@ -1,7 +1,7 @@
 #ifndef __EVENTPOLLOER_H__
 #define __EVENTPOLLOER_H__
 
-#include "FasttunBase.h"
+#include "fasttun_base.h"
 #include <map>
 
 #ifndef _WIN32

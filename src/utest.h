@@ -4,9 +4,9 @@
 #include "cppunit/TestFixture.h"
 #include "cppunit/extensions/HelperMacros.h"
 
-#include "FasttunBase.h"
-#include "MessageReceiver.h"
-#include "DiskCache.h"
+#include "fasttun_base.h"
+#include "message_receiver.h"
+#include "disk_cache.h"
 
 class UTest : public CppUnit::TestFixture
 {

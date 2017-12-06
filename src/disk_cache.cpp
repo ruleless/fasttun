@@ -1,4 +1,4 @@
-#include "DiskCache.h"
+#include "disk_cache.h"
 
 NAMESPACE_BEG(tun)
 

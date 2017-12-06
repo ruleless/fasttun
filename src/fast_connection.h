@@ -1,12 +1,12 @@
 #ifndef __FASTCONNECTION_H__
 #define __FASTCONNECTION_H__
 
-#include "FasttunBase.h"
-#include "EventPoller.h"
-#include "KcpTunnel.h"
-#include "Connection.h"
-#include "Cache.h"
-#include "MessageReceiver.h"
+#include "fasttun_base.h"
+#include "event_poller.h"
+#include "kcp_tunnel.h"
+#include "connection.h"
+#include "cache.h"
+#include "message_receiver.h"
 
 NAMESPACE_BEG(tun)
 

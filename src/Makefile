@@ -15,8 +15,8 @@ LDFLAGS+= -rdynamic -L $(CILLDIR)/lib -lcill -llog -lkmem -L $(ROOT)/lib -lkcp -
 RM= -rm -rf
 
 
-COMMON_OBJS:= EventPoller.o SelectPoller.o EpollPoller.o Connection.o Listener.o \
-	FastConnection.o FasttunBase.o UdpPacketSender.o DiskCache.o
+COMMON_OBJS:= event_poller.o select_poller.o epoll_poller.o connection.o listener.o \
+	fast_connection.o fasttun_base.o udppacket_sender.o disk_cache.o
 
 .PHONY:all test clean install-cli install-svr fake
 all:client.out server.out test.out
@@ -31,24 +31,24 @@ test.out:$(COMMON_OBJS) test.o
 utest.out:$(COMMON_OBJS) utest.o
 	$(CXX) -o $@ $^ $(LDFLAGS) -lcppunit
 
-client.o: client.cpp EventPoller.h Listener.h Connection.h KcpTunnel.h KcpTunnel.inl UdpPacketSender.h FastConnection.h
-server.o: server.cpp EventPoller.h Listener.h Connection.h KcpTunnel.h KcpTunnel.inl UdpPacketSender.h FastConnection.h \
-	Cache.h DiskCache.h
-test.o: test.cpp EventPoller.h Listener.h Connection.h KcpTunnel.h KcpTunnel.inl UdpPacketSender.h FastConnection.h \
-	Cache.h DiskCache.h
-utest.o: utest.cpp EventPoller.h Listener.h Connection.h KcpTunnel.h KcpTunnel.inl UdpPacketSender.h FastConnection.h Cache.h \
-	MessageReceiver.h DiskCache.h
+client.o: client.cpp event_poller.h listener.h connection.h kcp_tunnel.h kcp_tunnel.inl udppacket_sender.h fast_connection.h
+server.o: server.cpp event_poller.h listener.h connection.h kcp_tunnel.h kcp_tunnel.inl udppacket_sender.h fast_connection.h \
+	cache.h disk_cache.h
+test.o: test.cpp event_poller.h listener.h connection.h kcp_tunnel.h kcp_tunnel.inl udppacket_sender.h fast_connection.h \
+	cache.h disk_cache.h
+utest.o: utest.cpp event_poller.h listener.h connection.h kcp_tunnel.h kcp_tunnel.inl udppacket_sender.h fast_connection.h cache.h \
+	message_receiver.h disk_cache.h
 
-FasttunBase.o: FasttunBase.cpp FasttunBase.h
-EventPoller.o: EventPoller.cpp EventPoller.h SelectPoller.h EpollPoller.h FasttunBase.h
-SelectPoller.o: SelectPoller.cpp SelectPoller.h EventPoller.h FasttunBase.h
-EpollPoller.o: EpollPoller.cpp EpollPoller.h EventPoller.h FasttunBase.h
-Listener.o: Listener.cpp Listener.h EventPoller.h FasttunBase.h
-Connection.o: Connection.cpp Connection.h EventPoller.h FasttunBase.h
-FastConnection.o: FastConnection.cpp FastConnection.h EventPoller.h KcpTunnel.h KcpTunnel.inl UdpPacketSender.h Connection.h \
-	Cache.h DiskCache.h	FasttunBase.h MessageReceiver.h
-UdpPacketSender.o: UdpPacketSender.cpp UdpPacketSender.h EventPoller.h FasttunBase.h
-DiskCache.o: DiskCache.cpp DiskCache.h FasttunBase.h
+fasttun_base.o: fasttun_base.cpp fasttun_base.h
+event_poller.o: event_poller.cpp event_poller.h select_poller.h epoll_poller.h fasttun_base.h
+select_poller.o: select_poller.cpp select_poller.h event_poller.h fasttun_base.h
+epoll_poller.o: epoll_poller.cpp epoll_poller.h event_poller.h fasttun_base.h
+listener.o: listener.cpp listener.h event_poller.h fasttun_base.h
+connection.o: connection.cpp connection.h event_poller.h fasttun_base.h
+fast_connection.o: fast_connection.cpp fast_connection.h event_poller.h kcp_tunnel.h kcp_tunnel.inl udppacket_sender.h connection.h \
+	cache.h disk_cache.h fasttun_base.h message_receiver.h
+udppacket_sender.o: udppacket_sender.cpp udppacket_sender.h event_poller.h fasttun_base.h
+disk_cache.o: disk_cache.cpp disk_cache.h fasttun_base.h
 
 
 install-cli:

@@ -1,4 +1,4 @@
-#include "FastConnection.h"
+#include "fast_connection.h"
 
 NAMESPACE_BEG(tun)
 

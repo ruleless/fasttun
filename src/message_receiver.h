@@ -1,7 +1,7 @@
 #ifndef __MESSAGERECEIVER_H__
 #define __MESSAGERECEIVER_H__
 
-#include "FasttunBase.h"
+#include "fasttun_base.h"
 
 NAMESPACE_BEG(msg)
 

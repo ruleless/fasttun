@@ -1,8 +1,8 @@
 #ifndef __LISTENER_H__
 #define __LISTENER_H__
 
-#include "FasttunBase.h"
-#include "EventPoller.h"
+#include "fasttun_base.h"
+#include "event_poller.h"
 
 NAMESPACE_BEG(tun)
 

@@ -1,8 +1,8 @@
-#include "FasttunBase.h"
-#include "Listener.h"
-#include "Connection.h"
-#include "KcpTunnel.h"
-#include "FastConnection.h"
+#include "fasttun_base.h"
+#include "listener.h"
+#include "connection.h"
+#include "kcp_tunnel.h"
+#include "fast_connection.h"
 
 using namespace tun;
 

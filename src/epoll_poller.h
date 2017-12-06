@@ -1,7 +1,7 @@
 #ifndef __POLLEREPOLL_H__
 #define __POLLEREPOLL_H__
 
-#include "EventPoller.h"
+#include "event_poller.h"
 
 #ifdef HAS_EPOLL
 

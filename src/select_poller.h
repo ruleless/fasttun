@@ -1,7 +1,7 @@
 #ifndef __SELECTPOLLER_H__
 #define __SELECTPOLLER_H__
 
-#include "EventPoller.h"
+#include "event_poller.h"
 
 NAMESPACE_BEG(tun)
 

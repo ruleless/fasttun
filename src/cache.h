@@ -1,8 +1,8 @@
 #ifndef __CACHE_H__
 #define __CACHE_H__
 
-#include "FasttunBase.h"
-#include "DiskCache.h"
+#include "fasttun_base.h"
+#include "disk_cache.h"
 
 NAMESPACE_BEG(tun)
 

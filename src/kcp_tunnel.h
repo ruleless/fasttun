@@ -1,10 +1,10 @@
 #ifndef __KCPTUNNEL_H__
 #define __KCPTUNNEL_H__
 
-#include "FasttunBase.h"
-#include "EventPoller.h"
-#include "Cache.h"
-#include "UdpPacketSender.h"
+#include "fasttun_base.h"
+#include "event_poller.h"
+#include "cache.h"
+#include "udppacket_sender.h"
 #include "../kcp/ikcp.h"
 
 NAMESPACE_BEG(tun)
@@ -403,6 +403,6 @@ class KcpTunnelGroup : public InputNotificationHandler
 
 NAMESPACE_END // namespace tun
 
-#include "KcpTunnel.inl"
+#include "kcp_tunnel.inl"
 
 #endif // __KCPTUNNEL_H__
