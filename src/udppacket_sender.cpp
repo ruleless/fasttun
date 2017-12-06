@@ -17,7 +17,7 @@ void UdpPacketSender::send(const void *data, size_t datalen)
     {
         int sentlen = mpSender->processSend(data, datalen);
         // int sentlen = -1;
-        if (sentlen == datalen)
+        if (sentlen == (int)datalen)
             return;
     }
 
@@ -28,6 +28,7 @@ void UdpPacketSender::send(const void *data, size_t datalen)
 int UdpPacketSender::handleOutputNotification(int fd)
 {
     tryFlushRemainPacket();
+    return 0;
 }
 
 void UdpPacketSender::tryRegWriteEvent()
@@ -61,7 +62,7 @@ bool UdpPacketSender::tryFlushRemainPacket()
         Packet *p = *it;
         int sentlen = mpSender->processSend(p->buf, p->buflen);
         
-        if (p->buflen == sentlen)
+        if (p->buflen == (size_t)sentlen)
         {
             delete p;
             mPacketList.erase(it++);

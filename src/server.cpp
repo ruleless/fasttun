@@ -1,4 +1,6 @@
 #include "fasttun_base.h"
+#include "select_poller.h"
+#include "epoll_poller.h"
 #include "listener.h"
 #include "connection.h"
 #include "kcp_tunnel.h"
@@ -246,7 +248,7 @@ class Server : public Listener::Handler, public ServerBridge::Handler
 
     bool create(const SA *sa, socklen_t salen)
     {
-        if (!mListener.create(sa, salen))
+        if (!mListener.initialise(sa, salen))
         {
             ErrorPrint("create listener failed.");
             return false;
@@ -476,7 +478,11 @@ int main(int argc, char *argv[])
     }
 
     // create event poller
-    EventPoller *netPoller = EventPoller::create();
+#ifdef HAS_EPOLL
+    EventPoller *netPoller = new EpollPoller();
+#else
+    EventPoller *netPoller = new SelectPoller();
+#endif
 
     // kcp tunnel manager
     gTunnelManager = new MyTunnelGroup(netPoller);

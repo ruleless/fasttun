@@ -1,4 +1,6 @@
 #include "fasttun_base.h"
+#include "select_poller.h"
+#include "epoll_poller.h"
 #include "listener.h"
 #include "connection.h"
 #include "kcp_tunnel.h"
@@ -195,7 +197,7 @@ class Client : public Listener::Handler, public ClientBridge::Handler
 
     bool create()
     {
-        if (!mListener.create((const SA *)&ListenAddr, sizeof(ListenAddr)))
+        if (!mListener.initialise((const SA *)&ListenAddr, sizeof(ListenAddr)))
         {
             ErrorPrint("create listener failed.");
             return false;
@@ -332,7 +334,11 @@ int main(int argc, char *argv[])
     }
 
     // create event poller
-    EventPoller *netPoller = EventPoller::create();
+#ifdef HAS_EPOLL
+    EventPoller *netPoller = new EpollPoller();
+#else
+    EventPoller *netPoller = new SelectPoller();
+#endif
 
     // create client
     Client cli(netPoller);

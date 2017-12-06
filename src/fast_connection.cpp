@@ -191,7 +191,7 @@ void FastConnection::onRecv(const void *data, size_t datalen)
 void FastConnection::onRecvMsg(const void *data, uint8 datalen, void *user)
 {
     MemoryStream stream;
-    stream.append(data, datalen);
+    stream.append((const uint8 *)data, (size_t)datalen);
     assert(stream.length() >= sizeof(int) && "handleMessage() stream.length() > sizeof(int)");
 
     bool notifyKcpTunnelCreateFailed = false;
@@ -268,7 +268,7 @@ void FastConnection::sendMessage(int msgid, const void *data, size_t datalen)
     stream<<msglen;
     stream<<msgid;
     if (data != NULL && datalen > 0)
-        stream.append(data, datalen);
+        stream.append((const uint8 *)data, (size_t)datalen);
     mpConnection->send(stream.data(), stream.length());
 }
 

@@ -45,7 +45,7 @@ bool Listener::initialise(const SA *sa, socklen_t salen)
 #endif
 
     // set nonblocking
-    if (!setNonblocking(mFd))
+    if (!core::setNonblocking(mFd))
     {
         ErrorPrint("[Listener::initialise] set nonblocking error! %s", coreStrError());
         goto err_1;

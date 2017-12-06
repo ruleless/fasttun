@@ -20,6 +20,8 @@ class DiskCache
 
     void rollback(size_t n);
 
+    void clear();
+
   private:
     bool _createFile();
 

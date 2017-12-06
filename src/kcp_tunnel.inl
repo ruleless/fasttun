@@ -137,7 +137,7 @@ bool KcpTunnel<IsServer>::flushSndBuf(const void *data, size_t datalen)
 template <bool IsServer>
 bool KcpTunnel<IsServer>::_canFlush() const
 {
-    return ikcp_waitsnd(mKcpCb) < 2*mKcpCb->snd_wnd;
+    return ikcp_waitsnd(mKcpCb) < 2*(int)mKcpCb->snd_wnd;
 }
 
 template <bool IsServer>
@@ -353,6 +353,7 @@ int KcpTunnelGroup<IsServer>::handleOutputNotification(int fd)
     {
         (*it)->handleOutputNotification(fd);
     }
+    return 0;
 }
 //--------------------------------------------------------------------------
 

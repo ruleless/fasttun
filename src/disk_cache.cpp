@@ -65,6 +65,15 @@ void DiskCache::rollback(size_t n)
         fseek(mpFile, -(n+sizeof(size_t)), SEEK_CUR);
 }
 
+void DiskCache::clear()
+{
+    if (mpFile)
+    {
+        fclose(mpFile);
+        mpFile = NULL;
+    }
+}
+
 bool DiskCache::_createFile()
 {
     if (mpFile)
