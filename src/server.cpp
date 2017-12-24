@@ -23,19 +23,19 @@ class ServerBridge : public Connection::Handler
                    , public TimerHandler
 {
     static const uint32 CONNCHECK_INTERVAL = 30000;
-    
+
   public:
     struct Handler
     {
         virtual void onExtConnDisconnected(ServerBridge *pBridge) = 0;
         virtual void onExtConnError(ServerBridge *pBridge) = 0;
     };
-    
+
     ServerBridge(EventPoller *poller, Handler *h)
             :mEventPoller(poller)
             ,mpHandler(h)
-            ,mpIntConn(NULL)
-            ,mpExtConn(NULL)
+            ,mIntConn(poller)
+            ,mExtConn(poller, gTunnelManager)
             ,mCache(NULL)
             ,mLastExtConnTime(0)
             ,mHeartBeatTimer()
@@ -43,7 +43,7 @@ class ServerBridge : public Connection::Handler
     {
         mCache = new MyCache(this, &ServerBridge::flush);
     }
-    
+
     virtual ~ServerBridge()
     {
         delete mCache;
@@ -51,30 +51,19 @@ class ServerBridge : public Connection::Handler
 
     bool acceptConnection(int connfd)
     {
-        assert(NULL == mpIntConn && NULL == mpExtConn &&
-               "NULL == mpIntConn && NULL == mpExtConn");
-
-        mpExtConn = new FastConnection(mEventPoller, gTunnelManager);
-        if (!mpExtConn->acceptConnection(connfd))
+        if (!mExtConn.acceptConnection(connfd))
         {
-            delete mpExtConn;
-            mpExtConn = NULL;
             return false;
         }
-        mpExtConn->setEventHandler(this);
+        mExtConn.setEventHandler(this);
 
         mLastExtConnTime = core::getClock();
-        mpIntConn = new Connection(mEventPoller);
-        if (!mpIntConn->connect((const SA *)&ConnectAddr, sizeof(ConnectAddr)))
+        mIntConn.setEventHandler(this);
+        if (!mIntConn.connect((const SA *)&ConnectAddr, sizeof(ConnectAddr)))
         {
-            mpExtConn->shutdown();
-            delete mpExtConn;
-            mpExtConn = NULL;
-            delete mpIntConn;
-            mpIntConn = NULL;
+            mExtConn.shutdown();
             return false;
         }
-        mpIntConn->setEventHandler(this);
 
         uint32 curClock = core::getClock();
         mHeartBeatTimer = gTimer.add(curClock+HeartBeatRecord::HEARTBEAT_INTERVAL,
@@ -91,24 +80,9 @@ class ServerBridge : public Connection::Handler
     {
         mHeartBeatTimer.cancel();
         mConnCheckTimer.cancel();
-        
-        if (mpExtConn)
-        {
-            mpExtConn->shutdown();
-            delete mpExtConn;
-            mpExtConn = NULL;
-        }
-        if (mpIntConn)
-        {
-            mpIntConn->shutdown();
-            delete mpIntConn;
-            mpIntConn = NULL;
-        }
-    }   
 
-    FastConnection* getExtConn() const
-    {
-        return mpExtConn;
+        mExtConn.shutdown();
+        mIntConn.shutdown();
     }
 
     // Connection::Handler
@@ -123,13 +97,13 @@ class ServerBridge : public Connection::Handler
 
     virtual void onRecv(Connection *pConn, const void *data, size_t datalen)
     {
-        mpExtConn->send(data, datalen);
+        mExtConn.send(data, datalen);
     }
-    
+
     virtual void onError(Connection *pConn)
     {
-        _reconnectInternal();
         WarningPrint("occur an error at an internal connection! reason:%s", coreStrError());
+        _reconnectInternal();
     }
 
     // FastConnection::Handler
@@ -143,7 +117,7 @@ class ServerBridge : public Connection::Handler
         if (mpHandler)
             mpHandler->onExtConnError(this);
     }
-        
+
     virtual void onCreateKcpTunnelFailed(FastConnection *pConn)
     {
         if (mpHandler)
@@ -152,7 +126,7 @@ class ServerBridge : public Connection::Handler
 
     virtual void onRecv(FastConnection *pConn, const void *data, size_t datalen)
     {
-        if (!mpIntConn->isConnected())
+        if (!mIntConn.isConnected())
         {
             _reconnectInternal();
             mCache->cache(data, datalen);
@@ -160,7 +134,7 @@ class ServerBridge : public Connection::Handler
         else
         {
             _flushAll();
-            mpIntConn->send(data, datalen);
+            mIntConn.send(data, datalen);
         }
     }
 
@@ -169,21 +143,17 @@ class ServerBridge : public Connection::Handler
     {
         if (handle == mHeartBeatTimer)
         {
-            if (mpExtConn)
-                mpExtConn->triggerHeartBeatPacket();
+            mExtConn.triggerHeartBeatPacket();
         }
         else if (handle == mConnCheckTimer)
         {
-            if (mpExtConn)
-            {
-                const HeartBeatRecord& rec = mpExtConn->getHeartBeatRecord();
+            const HeartBeatRecord &rec = mExtConn.getHeartBeatRecord();
 
-                if (rec.isTimeout())
-                {
-                    InfoPrint("External Connection Timeout!");
-                    if (mpHandler)
-                        mpHandler->onExtConnError(this);
-                }
+            if (rec.isTimeout())
+            {
+                InfoPrint("External Connection Timeout!");
+                if (mpHandler)
+                    mpHandler->onExtConnError(this);
             }
         }
     }
@@ -193,32 +163,32 @@ class ServerBridge : public Connection::Handler
         ulong curtick = core::getClock();
         if (curtick > mLastExtConnTime+1000)
         {
-            mLastExtConnTime = curtick;         
-            mpIntConn->connect((const SA *)&ConnectAddr, sizeof(ConnectAddr));
-        }       
+            mLastExtConnTime = curtick;
+            mIntConn.connect((const SA *)&ConnectAddr, sizeof(ConnectAddr));
+        }
     }
 
     void _flushAll()
     {
-        if (mpIntConn->isConnected())
+        if (mIntConn.isConnected())
         {
             mCache->flushAll();
         }
     }
     bool flush(const void *data, size_t len)
     {
-        mpIntConn->send(data, len);
+        mIntConn.send(data, len);
         return true;
     }
-    
-  private:  
+
+  private:
     typedef Cache<ServerBridge> MyCache;
-    
+
     EventPoller *mEventPoller;
     Handler *mpHandler;
 
-    Connection *mpIntConn;
-    FastConnection *mpExtConn;
+    Connection mIntConn;
+    FastConnection mExtConn;
 
     MyCache *mCache;
 
@@ -241,7 +211,7 @@ class Server : public Listener::Handler, public ServerBridge::Handler
             ,mShutedBridges()
     {
     }
-    
+
     virtual ~Server()
     {
     }
@@ -259,7 +229,7 @@ class Server : public Listener::Handler, public ServerBridge::Handler
     }
 
     void finalise()
-    {       
+    {
         mListener.finalise();
 
         update();
@@ -283,7 +253,7 @@ class Server : public Listener::Handler, public ServerBridge::Handler
         for (; it != mShutedBridges.end(); ++it)
         {
             (*it)->shutdown();
-            delete *it;     
+            delete *it;
         }
         mShutedBridges.clear();
     }
@@ -302,32 +272,32 @@ class Server : public Listener::Handler, public ServerBridge::Handler
     }
 
     virtual void onExtConnDisconnected(ServerBridge *pBridge)
-    {       
+    {
         onBridgeShut(pBridge);
         DebugPrint("a fast connection closed! cursize:%u", mBridges.size());
     }
-    
+
     virtual void onExtConnError(ServerBridge *pBridge)
-    {       
+    {
         onBridgeShut(pBridge);
         InfoPrint("a fast connection occur error! cursize:%u, reason:%s", mBridges.size(), coreStrError());
     }
-    
+
   private:
     void onBridgeShut(ServerBridge *pBridge)
-    {       
+    {
         BridgeList::iterator it = mBridges.find(pBridge);
         if (it != mBridges.end())
-        {           
+        {
             mBridges.erase(it);
         }
 
         mShutedBridges.insert(pBridge);
     }
-    
+
   private:
     typedef std::set<ServerBridge *> BridgeList;
-    
+
     EventPoller *mEventPoller;
     Listener mListener;
 
@@ -372,11 +342,11 @@ void sigHandler(int signo)
         break;
     default:
         break;
-    }   
+    }
 }
 
 int main(int argc, char *argv[])
-{   
+{
     // parse parameter
     int pidFlags = 0;
     bool bVerbose = false;
@@ -385,7 +355,7 @@ int main(int argc, char *argv[])
     const char *kcpListenAddr = NULL;
     const char *connectAddr = NULL;
     const char *pidPath = NULL;
-    
+
     int opt = 0;
     while ((opt = getopt(argc, argv, "f:c:l:r:v")) != -1)
     {
@@ -419,7 +389,7 @@ int main(int argc, char *argv[])
     int logLevel = InfoLog | WarningLog | ErrorLog | EmphasisLog;
     if (bVerbose)
         logLevel |= DebugLog;
-    
+
     if (pidFlags)
     {
         daemonize(pidPath);
@@ -443,7 +413,7 @@ int main(int argc, char *argv[])
         log_reg_filelog("log", "tunsvr-", "/tmp", "tunsvr-old-", "/tmp");
         log_reg_console();
     }
-    
+
     if (argc == 1)
     {
         confPath = DEFAULT_CONF_PATH;
@@ -504,19 +474,19 @@ int main(int argc, char *argv[])
         delete netPoller;
         log_finalise();
         exit(EXIT_FAILURE);
-    }   
+    }
 
     struct sigaction newAct;
     newAct.sa_handler = sigHandler;
     sigemptyset(&newAct.sa_mask);
     newAct.sa_flags = 0;
-    
+
     sigaction(SIGPIPE, &newAct, NULL);
-    
+
     sigaction(SIGINT, &newAct, NULL);
     sigaction(SIGQUIT, &newAct, NULL);
-    
-    // sigaction(SIGKILL, &newAct, NULL);   
+
+    // sigaction(SIGKILL, &newAct, NULL);
     sigaction(SIGTERM, &newAct, NULL);
 
     static const uint32 MAX_WAIT = 60000;
@@ -539,16 +509,16 @@ int main(int argc, char *argv[])
         svr.update();
 
         maxWait  = min(nextKcpUpdateInterval, nextTimerCheckInterval);
-        maxWait *= 0.001f;      
+        maxWait *= 0.001f;
     }
     DebugPrint("Leave Main Loop...");
 
     // finalise
     svr.finalise();
-    
+
     gTunnelManager->shutdown();
     delete gTunnelManager;
-    
+
     delete netPoller;
 
     // uninit log

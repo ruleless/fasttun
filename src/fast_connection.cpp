@@ -16,7 +16,7 @@ class ConvGen : public IDGenerator<uint32, MaxNum>
             this->restorId(id);
         }
     }
-    
+
     virtual ~ConvGen()
     {
         this->mAvailableIds.clear();
@@ -44,7 +44,7 @@ bool FastConnection::acceptConnection(int connfd)
         return false;
     }
 
-    // create a connection object on an exists socket 
+    // create a connection object on an exists socket
     mpConnection = new Connection(mEventPoller);
     if (!mpConnection->acceptConnection(connfd))
     {
@@ -68,7 +68,7 @@ bool FastConnection::acceptConnection(int connfd)
     MemoryStream stream;
     stream<<conv;
     sendMessage(MsgId_CreateKcpTunnel, stream.data(), stream.length());
-    
+
     return true;
 }
 
@@ -89,16 +89,16 @@ bool FastConnection::connect(const char *ip, int port)
 bool FastConnection::connect(const SA *sa, socklen_t salen)
 {
     shutdown();
-    
+
     mpConnection = new Connection(mEventPoller);
+    mpConnection->setEventHandler(this);
     if (!mpConnection->connect(sa, salen))
     {
         delete mpConnection;
         mpConnection = NULL;
         return false;
     }
-    mpConnection->setEventHandler(this);
-        
+
     return true;
 }
 
@@ -162,7 +162,7 @@ void FastConnection::onConnected(Connection *pConn)
     if (mpHandler)
         mpHandler->onConnected(this);
 }
-        
+
 void FastConnection::onDisconnected(Connection *pConn)
 {
     shutdown();
@@ -196,7 +196,7 @@ void FastConnection::onRecvMsg(const void *data, uint8 datalen, void *user)
 
     bool notifyKcpTunnelCreateFailed = false;
     int msgid = 0;
-    stream>>msgid;  
+    stream>>msgid;
     switch (msgid)
     {
     case MsgId_CreateKcpTunnel:
@@ -211,7 +211,7 @@ void FastConnection::onRecvMsg(const void *data, uint8 datalen, void *user)
                 notifyKcpTunnelCreateFailed = true;
                 break;
             }
-            
+
             mpKcpTunnel->setEventHandler(this);
             mbTunnelConnected = true;
             sendMessage(MsgId_ConfirmCreateKcpTunnel, NULL, 0);
@@ -223,7 +223,7 @@ void FastConnection::onRecvMsg(const void *data, uint8 datalen, void *user)
             if (NULL == mpKcpTunnel)
             {
                 ErrorPrint("FastConnection::handleMessage() we have no kcptunnel on server!");
-                notifyKcpTunnelCreateFailed = true;             
+                notifyKcpTunnelCreateFailed = true;
                 break;
             }
             mbTunnelConnected = true;
@@ -262,7 +262,7 @@ void FastConnection::sendMessage(int msgid, const void *data, size_t datalen)
         ErrorPrint("FastConnection::sendMessage() mpConnection is not connected");
         return;
     }
-    
+
     MemoryStream stream;
     uint8 msglen = sizeof(msgid)+datalen;
     stream<<msglen;

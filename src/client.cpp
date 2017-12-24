@@ -26,15 +26,15 @@ class ClientBridge : public Connection::Handler, public FastConnection::Handler
         virtual void onIntConnDisconnected(ClientBridge *pBridge) = 0;
         virtual void onIntConnError(ClientBridge *pBridge) = 0;
     };
-    
+
     ClientBridge(EventPoller *poller, Handler *l)
             :mEventPoller(poller)
             ,mpHandler(l)
-            ,mpIntConn(NULL)
-            ,mpExtConn(NULL)
+            ,mIntConn(poller)
+            ,mExtConn(poller, gTunnelManager)
             ,mLastExtConnTime(0)
     {}
-    
+
     virtual ~ClientBridge()
     {
         shutdown();
@@ -42,71 +42,57 @@ class ClientBridge : public Connection::Handler, public FastConnection::Handler
 
     bool acceptConnection(int connfd)
     {
-        assert(NULL == mpIntConn && NULL == mpExtConn &&
-               "NULL == mpIntConn && NULL == mpExtConn");
-
-        mpIntConn = new Connection(mEventPoller);
-        if (!mpIntConn->acceptConnection(connfd))
+        if (!mIntConn.acceptConnection(connfd))
         {
-            delete mpIntConn;
-            mpIntConn = NULL;
+            mIntConn.shutdown();
             return false;
         }
-        mpIntConn->setEventHandler(this);
+        mIntConn.setEventHandler(this);
 
-        mpExtConn = new FastConnection(mEventPoller, gTunnelManager);
         mLastExtConnTime = core::getClock();
-        if (!mpExtConn->connect((const SA *)&RemoteAddr, sizeof(RemoteAddr)))
+        mExtConn.setEventHandler(this);
+        if (!mExtConn.connect((const SA *)&RemoteAddr, sizeof(RemoteAddr)))
         {
-            mpIntConn->shutdown();
-            delete mpIntConn;
-            mpIntConn = NULL;
-            delete mpExtConn;
-            mpExtConn = NULL;
+            mIntConn.shutdown();
             return false;
         }
-        mpExtConn->setEventHandler(this);
-        
+
         return true;
     }
 
     void shutdown()
     {
-        if (mpIntConn)
-        {
-            mpIntConn->shutdown();
-            delete mpIntConn;
-            mpIntConn = NULL;
-        }
-        if (mpExtConn)
-        {
-            mpExtConn->shutdown();
-            delete mpExtConn;
-            mpExtConn = NULL;
-        }
-    }   
+        mIntConn.shutdown();
+        mExtConn.shutdown();
+    }
 
     // Connection::Handler
     virtual void onConnected(FastConnection *pConn)
     {
     }
-    
+
     virtual void onDisconnected(Connection *pConn)
     {
         if (mpHandler)
+        {
             mpHandler->onIntConnDisconnected(this);
-    }   
-    
+            mIntConn.shutdown();
+        }
+    }
+
     virtual void onError(Connection *pConn)
     {
         if (mpHandler)
+        {
             mpHandler->onIntConnError(this);
+            mIntConn.shutdown();
+        }
     }
 
     virtual void onRecv(Connection *pConn, const void *data, size_t datalen)
     {
-        mpExtConn->send(data, datalen);
-        if (!mpExtConn->isConnected())
+        mExtConn.send(data, datalen);
+        if (!mExtConn.isConnected())
             _reconnectExternal();
     }
 
@@ -128,7 +114,7 @@ class ClientBridge : public Connection::Handler, public FastConnection::Handler
 
     virtual void onRecv(FastConnection *pConn, const void *data, size_t datalen)
     {
-        mpIntConn->send(data, datalen);
+        mIntConn.send(data, datalen);
     }
 
     void _reconnectExternal()
@@ -137,16 +123,16 @@ class ClientBridge : public Connection::Handler, public FastConnection::Handler
         if (curtick > mLastExtConnTime+10000)
         {
             mLastExtConnTime = curtick;
-            mpExtConn->connect((const SA *)&RemoteAddr, sizeof(RemoteAddr));
-        }       
+            mExtConn.connect((const SA *)&RemoteAddr, sizeof(RemoteAddr));
+        }
     }
-    
+
   private:
     EventPoller *mEventPoller;
     Handler *mpHandler;
-    
-    Connection *mpIntConn;
-    FastConnection *mpExtConn;
+
+    Connection mIntConn;
+    FastConnection mExtConn;
 
     ulong mLastExtConnTime;
 };
@@ -164,7 +150,7 @@ class Client : public Listener::Handler, public ClientBridge::Handler
             ,mShutedBridges()
     {
     }
-    
+
     virtual ~Client()
     {
     }
@@ -182,7 +168,7 @@ class Client : public Listener::Handler, public ClientBridge::Handler
     }
 
     void finalise()
-    {       
+    {
         mListener.finalise();
 
         update();
@@ -206,7 +192,7 @@ class Client : public Listener::Handler, public ClientBridge::Handler
         for (; it != mShutedBridges.end(); ++it)
         {
             (*it)->shutdown();
-            delete *it;     
+            delete *it;
         }
         mShutedBridges.clear();
     }
@@ -225,32 +211,32 @@ class Client : public Listener::Handler, public ClientBridge::Handler
     }
 
     virtual void onIntConnDisconnected(ClientBridge *pBridge)
-    {       
+    {
         onBridgeShut(pBridge);
         DebugPrint("a connection closed! cursize:%u", mBridges.size());
     }
-    
+
     virtual void onIntConnError(ClientBridge *pBridge)
     {
         onBridgeShut(pBridge);
         WarningPrint("a connection occur error! cursize:%u reason:%s", mBridges.size(), coreStrError());
     }
-    
+
   private:
     void onBridgeShut(ClientBridge *pBridge)
-    {       
+    {
         BridgeList::iterator it = mBridges.find(pBridge);
         if (it != mBridges.end())
-        {           
+        {
             mBridges.erase(it);
         }
 
         mShutedBridges.insert(pBridge);
-    }   
-    
+    }
+
   private:
     typedef std::set<ClientBridge *> BridgeList;
-    
+
     EventPoller *mEventPoller;
     Listener mListener;
 
@@ -295,11 +281,11 @@ void sigHandler(int signo)
         break;
     default:
         break;
-    }   
+    }
 }
 
 int main(int argc, char *argv[])
-{   
+{
     // parse parameter
     int pidFlags = 0;
     bool bVerbose = false;
@@ -308,7 +294,7 @@ int main(int argc, char *argv[])
     const char *remoteAddr = NULL;
     const char *kcpRemoteAddr = NULL;
     const char *pidPath = NULL;
-    
+
     int opt = 0;
     while ((opt = getopt(argc, argv, "f:c:l:r:v")) != -1)
     {
@@ -341,8 +327,8 @@ int main(int argc, char *argv[])
     // daemoniize
     int logLevel = InfoLog | WarningLog | ErrorLog | EmphasisLog;
     if (bVerbose)
-        logLevel |= DebugLog;    
-    
+        logLevel |= DebugLog;
+
     if (pidFlags)
     {
         daemonize(pidPath);
@@ -365,8 +351,8 @@ int main(int argc, char *argv[])
 
         log_reg_filelog("log", "tuncli-", "/tmp", "tuncli-old-", "/tmp");
         log_reg_console();
-    }   
-    
+    }
+
     if (argc == 1)
     {
         confPath = DEFAULT_CONF_PATH;
@@ -384,7 +370,7 @@ int main(int argc, char *argv[])
         if (s_kcpRemoteAddr != "")
             kcpRemoteAddr = s_kcpRemoteAddr.c_str();
     }
-    
+
     if (NULL == listenAddr || NULL == remoteAddr || NULL == kcpRemoteAddr)
     {
         fprintf(stderr, "no argument assigned or parse argument failed!\n");
@@ -417,7 +403,7 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    // create client        
+    // create client
     Client cli(netPoller);
     if (!cli.create((const SA *)&ListenAddr, sizeof(ListenAddr)))
     {
@@ -427,19 +413,19 @@ int main(int argc, char *argv[])
         delete netPoller;
         log_finalise();
         exit(EXIT_FAILURE);
-    }   
+    }
 
     struct sigaction newAct;
     newAct.sa_handler = sigHandler;
     sigemptyset(&newAct.sa_mask);
     newAct.sa_flags = 0;
-    
+
     sigaction(SIGPIPE, &newAct, NULL);
-    
+
     sigaction(SIGINT, &newAct, NULL);
     sigaction(SIGQUIT, &newAct, NULL);
-    
-    // sigaction(SIGKILL, &newAct, NULL);   
+
+    // sigaction(SIGKILL, &newAct, NULL);
     sigaction(SIGTERM, &newAct, NULL);
 
     static const uint32 MAX_WAIT = 60000;
@@ -449,9 +435,9 @@ int main(int argc, char *argv[])
     while (s_continueMainLoop)
     {
         curClock = core::getClock();
-        
+
         netPoller->processPendingEvents(maxWait);
-        
+
         nextKcpUpdateInterval = gTunnelManager->update();
 
         gTimer.process(curClock);
@@ -462,16 +448,16 @@ int main(int argc, char *argv[])
         cli.update();
 
         maxWait  = min(nextKcpUpdateInterval, nextTimerCheckInterval);
-        maxWait *= 0.001f;      
+        maxWait *= 0.001f;
     }
     DebugPrint("Leave Main Loop...");
 
     // finalise
-    cli.finalise(); 
-    
+    cli.finalise();
+
     gTunnelManager->shutdown();
     delete gTunnelManager;
-    
+
     delete netPoller;
 
     // uninit log
