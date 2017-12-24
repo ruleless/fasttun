@@ -327,7 +327,7 @@ int KcpTunnelGroup<IsServer>::handleInputNotification(int fd)
     if (recvlen > 0)
     {
         uint32 conv = 0;
-        int ret = ikcp_get_conv(buf, recvlen, &conv);
+        int ret = ikcp_get_conv(buf, recvlen, (IUINT32 *)&conv);
         typename Tunnels::iterator it = ret ? mTunnels.find(conv) : mTunnels.end();
             
         if (it != mTunnels.end())
